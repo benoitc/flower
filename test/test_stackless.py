@@ -1,3 +1,8 @@
+# -*- coding: utf-8 -
+#
+# This file is part of socketpool.
+# See the NOTICE for more information.
+
 from __future__ import absolute_import
 from py.test import skip
 from flower import stackless
@@ -445,7 +450,7 @@ class Test_Stackless:
         def exp_recv(chan):
             try:
                 val = chan.receive()
-            except Exception, exp:
+            except Exception as exp:
                 assert exp.__class__ is Exception
                 assert str(exp) == 'test'
 

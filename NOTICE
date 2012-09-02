@@ -6,3 +6,9 @@ flower
 flower is available in the public domain (see UNLICENSE). flower
 is also optionally available under the MIT License (see LICENSE), meant
 especially for jurisdictions that do not recognize public domain works.
+
+
+flower.stackless 
+----------------
+
+based on pypy stackless implementation under MIT License.
