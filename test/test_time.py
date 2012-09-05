@@ -146,6 +146,3 @@ class Test_Time:
 
         with pytest.raises(Timeout):
             f()
-
-
-

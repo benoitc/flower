@@ -3,12 +3,10 @@
 # This file is part of flower. See the NOTICE for more information
 
 
-import threading
-from flower import stackless
+time = __import__('time').time
 
 import pyuv
-
-time = __import__('time').time
+from flower import stackless
 
 class Ticker(stackless.channel):
     """A Ticker holds a synchronous channel that delivers `ticks' of a
@@ -43,7 +41,13 @@ def sleep(delay=0, ref=True):
 
     if not ref:
         w.unref()
+
     c.receive()
+
+def idle(ref=True):
+    """ By using this function the current tasklet will be executed next
+    time the event loop is idle"""
+    sleep(delay=0, ref=ref)
 
 class Timeout(BaseException):
     """\
@@ -128,7 +132,6 @@ def timeout_(seconds=None, timeout_ex=None):
         def f():
             pass
     """
-
     def _wrapper(func):
         def _inner(*args, **kwargs):
             with Timeout(seconds=seconds, timeout_ex=timeout_ex):
