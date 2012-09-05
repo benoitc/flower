@@ -482,6 +482,7 @@ class _Scheduler(object):
         self._main_tasklet._init.im_func(self._main_tasklet, label='main')
         self._last_task = self._main_tasklet
         self.loop = pyuv.Loop()
+
         # used to make sure we can send messages in the same thread and
         # switch greenlets
         self._async = pyuv.Async(self.loop, self.wakeup)

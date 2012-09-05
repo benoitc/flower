@@ -18,7 +18,7 @@ class Ticker(stackless.channel):
         super(Ticker, self).__init__(label=label)
         self._interval = interval
         self._timer = pyuv.Timer(stackless.get_loop())
-        self._timer.start(self._tick, interval, True)
+        self._timer.start(self._tick, interval, interval)
 
     def _tick(self, handle):
         self.send(time())
