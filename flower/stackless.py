@@ -445,31 +445,6 @@ class LoopExit(Exception):
     pass
 
 
-class _BootTask(tasklet):
-
-    def setup(self, *argl, **argd):
-        """
-        supply the parameters for the callable
-        """
-        if self.func is None:
-            raise TypeError('tasklet function must be callable')
-        func = self.func
-        def _func():
-            try:
-                try:
-                    func(*argl, **argd)
-                except TaskletExit:
-                    pass
-            finally:
-                _scheduler_remove(self)
-                self.alive = False
-
-        self.func = None
-        coroutine.bind(self, _func)
-        self.alive = True
-        return self
-
-
 def _set_loop_status(status):
     _tls.is_loop_running = status
 
