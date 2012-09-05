@@ -1,3 +1,7 @@
+# -*- coding: utf-8 -
+#
+# This file is part of flower. See the NOTICE for more information.
+
 import pytest
 from py.test import skip
 from flower.local import local

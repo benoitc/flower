@@ -8,7 +8,7 @@ from flower.stackless import getcurrent
 
 class local(object):
     """ a local class working like a thread.local class to keep local
-    attrributes for a given tasklet """
+    attributes for a given tasklet """
 
     class _local_attr(object): pass
 

@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -
 #
-# This file is part of socketpool.
-# See the NOTICE for more information.
+# This file is part of flower. See the NOTICE for more information.
 
 from __future__ import absolute_import
 from py.test import skip

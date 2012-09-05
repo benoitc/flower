@@ -6,7 +6,9 @@
 import __builtin__
 from collections import deque
 import operator
+import os
 import sys
+import tempfile
 import threading
 
 if sys.version_info[0] <= 2:
@@ -17,7 +19,7 @@ else:
 _tls = thread._local()
 
 import greenlet
-
+import pyuv
 
 class TaskletExit(Exception):
     pass
@@ -73,7 +75,6 @@ class coroutine(object):
 
     def switch(self):
         current = _coroutine_getcurrent()
-
         try:
             self._greenlet.switch()
         finally:
@@ -87,9 +88,21 @@ class coroutine(object):
         if current._greenlet.parent is not self._greenlet:
             self._greenlet.parent = current._greenlet
 
-
         try:
             self._greenlet.throw(CoroutineExit)
+        finally:
+            _tls.current_coroutine = current
+
+    def throw(self, *args):
+        current = _coroutine_getcurrent()
+        if self is current:
+            raise CoroutineExit
+
+        if current._greenlet.parent is not self._greenlet:
+            self._greenlet.parent = current._greenlet
+
+        try:
+            self._greenlet.throw(*args)
         finally:
             _tls.current_coroutine = current
 
@@ -106,11 +119,12 @@ class coroutine(object):
 
 class ChannelWaiter(object):
 
-    __slots__ = ['scheduler', 'task']
+    __slots__ = ['scheduler', 'task', 'thread_id']
 
     def __init__(self, task, scheduler):
         self.task = task
         self.scheduler = scheduler
+        self.thread_id = thread.get_ident()
 
     def __get_tempval(self):
         return self.task.tempval
@@ -266,15 +280,22 @@ class channel(object):
                 do_schedule = True
             else:
                 target.scheduler.append(target.task)
+
+            sched = target.scheduler
+
         else:
             # nobody is waiting
+            sched = source.scheduler
             source.blocked = d
             self.queue.append(source)
             _scheduler_remove(getcurrent())
             do_schedule = True
 
         if do_schedule:
-            schedule()
+            if sched.thread_id != thread.get_ident():
+                sched.send()
+            else:
+                schedule()
 
         retval = source.tempval
         if isinstance(retval, bomb):
@@ -396,6 +417,14 @@ class tasklet(coroutine):
         _scheduler_remove(self)
         self.alive = False
 
+    def raise_exception(self, exc, *args):
+        if self.is_alive:
+            coroutine.throw(self, exc, *args)
+
+        _scheduler_remove(self)
+        self.alive = False
+
+
     def insert(self):
         if self.blocked:
             raise RuntimeError("You cannot run a blocked tasklet")
@@ -411,6 +440,62 @@ class tasklet(coroutine):
             # not sure if I will revive this  " Use t=tasklet().capture()"
         _scheduler_remove(self)
 
+
+class LoopExit(Exception):
+    pass
+
+
+class _BootTask(tasklet):
+
+    def setup(self, *argl, **argd):
+        """
+        supply the parameters for the callable
+        """
+        if self.func is None:
+            raise TypeError('tasklet function must be callable')
+        func = self.func
+        def _func():
+            try:
+                try:
+                    func(*argl, **argd)
+                except TaskletExit:
+                    pass
+            finally:
+                _scheduler_remove(self)
+                self.alive = False
+
+        self.func = None
+        coroutine.bind(self, _func)
+        self.alive = True
+        return self
+
+
+def _set_loop_status(status):
+    _tls.is_loop_running = status
+
+class _LoopTask(tasklet):
+
+    def __init__(self):
+        tasklet.__init__(self, label='loop')
+        self.loop = get_scheduler().loop
+        self.func = self._run_loop
+        # bind the coroutine
+        self.setup()
+
+    def schedule(self, handle):
+        _set_loop_status(True)
+        schedule()
+
+    def _run_loop(self):
+        self._timer = pyuv.Timer(self.loop)
+        self._timer.unref()
+        self._timer.start(self.schedule, 0.0001, True)
+
+        try:
+            self.loop.run()
+        finally:
+            _set_loop_status(False)
+
 class _Scheduler(object):
 
     def __init__(self):
@@ -421,11 +506,24 @@ class _Scheduler(object):
         self._main_tasklet.__class__ = tasklet
         self._main_tasklet._init.im_func(self._main_tasklet, label='main')
         self._last_task = self._main_tasklet
+        self.loop = pyuv.Loop()
+        # used to make sure we can send messages in the same thread and
+        # switch greenlets
+        self._async = pyuv.Async(self.loop, self.wakeup)
+        self._async.unref()
 
+        self.thread_id = thread.get_ident()
         self._callback = None
         self._run_calls = []
         self._squeue = deque()
         self.append(self._main_tasklet)
+
+
+    def send(self):
+        self._async.send()
+
+    def wakeup(self, handle):
+        self.schedule()
 
     def set_callback(self, cb):
         self._callback = cb
@@ -450,6 +548,7 @@ class _Scheduler(object):
             self._callback(prev, next)
         self._last_task = next
         assert not next.blocked
+
         if next is not current:
             next.switch()
 
@@ -476,14 +575,12 @@ class _Scheduler(object):
             if curr is self._last_task:
                 return retval
 
-
     def run(self):
         curr = self.getcurrent()
         self._run_calls.append(curr)
         self.remove(curr)
         try:
             self.schedule()
-            assert not self._squeue
         finally:
             self.append(curr)
 
@@ -522,6 +619,16 @@ def get_scheduler():
         scheduler = _tls.scheduler = _Scheduler()
         return scheduler
 
+def get_loop():
+    try:
+        is_running = _tls.is_loop_running
+    except AttributeError:
+        is_running = False
+
+    if not is_running:
+        loop_task = _LoopTask()
+    return get_scheduler().loop
+
 def getruncount():
     sched = get_scheduler()
     return sched.runcount()
@@ -531,7 +638,6 @@ def getcurrent():
 
 def getmain():
     return get_scheduler().getmain()
-
 
 def set_schedule_callback(scheduler_cb):
     sched = get_scheduler()
