@@ -5,7 +5,6 @@
 
 import threading
 from flower import stackless
-import thread
 
 import pyuv
 
