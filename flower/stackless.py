@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -
 #
-# This file is part of flower.
-# See the NOTICE for more information.
+# This file is part of flower. See the NOTICE for more information.
 
 import __builtin__
 from collections import deque
@@ -84,23 +83,10 @@ class coroutine(object):
         current = _coroutine_getcurrent()
         if self is current:
             raise CoroutineExit
-
-        if current._greenlet.parent is not self._greenlet:
-            self._greenlet.parent = current._greenlet
-
-        try:
-            self._greenlet.throw(CoroutineExit)
-        finally:
-            _tls.current_coroutine = current
+        self.throw(CoroutineExit)
 
     def throw(self, *args):
         current = _coroutine_getcurrent()
-        if self is current:
-            raise CoroutineExit
-
-        if current._greenlet.parent is not self._greenlet:
-            self._greenlet.parent = current._greenlet
-
         try:
             self._greenlet.throw(*args)
         finally:
@@ -448,6 +434,13 @@ class LoopExit(Exception):
 def _set_loop_status(status):
     _tls.is_loop_running = status
 
+def _set_loop_task(task):
+    _tls.loop_task = task
+
+def _unset_loop_task():
+    _tls.loop_task = None
+
+
 class _LoopTask(tasklet):
 
     def __init__(self):
@@ -456,6 +449,32 @@ class _LoopTask(tasklet):
         self.func = self._run_loop
         # bind the coroutine
         self.setup()
+
+
+    def setup(self, *argl, **argd):
+        """
+        supply the parameters for the callable
+        """
+        if self.func is None:
+            raise TypeError('tasklet function must be callable')
+
+        func = self.func
+        def _func():
+
+            try:
+                try:
+                    func(*argl, **argd)
+                except TaskletExit:
+                    pass
+            finally:
+                _scheduler_remove(self)
+                self.alive = False
+
+        self.func = None
+        coroutine.bind(self, _func)
+        self.alive = True
+        _scheduler_append(self, False)
+        return self
 
     def schedule(self, handle):
         _set_loop_status(True)
@@ -466,6 +485,8 @@ class _LoopTask(tasklet):
         self._timer.start(self.schedule, 0.0001, 0.0001)
         self._timer.unref()
 
+        # run the loop
+        _set_loop_status(True)
         try:
             self.loop.run()
         finally:
@@ -603,7 +624,25 @@ def get_loop():
 
     if not is_running:
         loop_task = _LoopTask()
+        _tls.loop_task = loop_task
     return get_scheduler().loop
+
+
+def wakeup_loop():
+    try:
+        loop_task = _tls.loop_task
+    except AttributeError:
+        get_loop()
+        loop_task = _tls.loop_task
+
+    loop_task.switch()
+
+def get_looptask():
+    try:
+        return _tls.loop_task
+    except AttributeError:
+        get_loop()
+        return _tls.loop_task
 
 def getruncount():
     sched = get_scheduler()

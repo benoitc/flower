@@ -30,5 +30,3 @@ def cpu_count():
         return num
     else:
         raise NotImplementedError('cannot determine number of cpus')
-
-
