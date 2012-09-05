@@ -463,8 +463,8 @@ class _LoopTask(tasklet):
 
     def _run_loop(self):
         self._timer = pyuv.Timer(self.loop)
-        self._timer.unref()
         self._timer.start(self.schedule, 0.0001, True)
+        self._timer.unref()
 
         try:
             self.loop.run()
