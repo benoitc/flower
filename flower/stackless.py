@@ -2,7 +2,7 @@
 #
 # This file is part of flower. See the NOTICE for more information.
 
-import __builtin__
+
 from collections import deque
 import operator
 import os
@@ -20,10 +20,17 @@ _tls = thread._local()
 import greenlet
 import pyuv
 
+import six
+
 class TaskletExit(Exception):
     pass
 
-__builtin__.TaskletExit = TaskletExit
+try:
+    import __builtin__
+    __builtin__.TaskletExit = TaskletExit
+except ImportError:
+    import builtins
+    setattr(builtins, 'TaskletExit', TaskletExit)
 
 CoroutineExit = TaskletExit
 _global_task_id = 0
@@ -53,7 +60,7 @@ class bomb(object):
         self.traceback = exp_traceback
 
     def raise_(self):
-        raise self.type, self.value, self.traceback
+        six.reraise(self.type, self.value, self.traceback)
 
 
 class coroutine(object):
@@ -500,7 +507,8 @@ class _Scheduler(object):
 
         self._main_tasklet = _coroutine_getcurrent()
         self._main_tasklet.__class__ = tasklet
-        self._main_tasklet._init.im_func(self._main_tasklet, label='main')
+        six.get_method_function(self._main_tasklet._init)(self._main_tasklet,
+                label='main')
         self._last_task = self._main_tasklet
         self.loop = pyuv.Loop()
 

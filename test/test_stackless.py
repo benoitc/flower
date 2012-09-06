@@ -8,9 +8,13 @@ from flower import stackless
 
 SHOW_STRANGE = False
 
+
+import six
+from six.moves import xrange
+
 def dprint(txt):
     if SHOW_STRANGE:
-        print txt
+        print(txt)
 
 class Test_Stackless:
 
@@ -80,7 +84,7 @@ class Test_Stackless:
     def test_send_counter(self):
         import random
 
-        numbers = range(20)
+        numbers = list(range(20))
         random.shuffle(numbers)
 
         def counter(n, ch):
@@ -104,7 +108,7 @@ class Test_Stackless:
     def test_receive_counter(self):
         import random
 
-        numbers = range(20)
+        numbers = list(range(20))
         random.shuffle(numbers)
 
         rlist = []
@@ -439,7 +443,10 @@ class Test_Stackless:
             import sys
             b = stackless.bomb(*sys.exc_info())
         assert b.type is ZeroDivisionError
-        assert str(b.value).startswith('integer division')
+        if six.PY3:
+            assert str(b.value).startswith('division by zero')
+        else:
+            assert str(b.value).startswith('integer division')
         assert b.traceback is not None
 
     def test_send_exception(self):

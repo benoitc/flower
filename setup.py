@@ -45,5 +45,5 @@ setup(name='flower',
       license = 'BSD',
       url = 'http://github.com/benoitc/flower',
       packages=find_packages(),
-      install_requires = ['pyuv'],
+      install_requires = ['pyuv', 'greenlet', 'six'],
       data_files = DATA_FILES)

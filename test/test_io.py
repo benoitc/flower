@@ -22,10 +22,10 @@ class Test_IO:
             c.stop()
 
         def _write(fd):
-            os.write(fd, "TEST")
+            os.write(fd, b"TEST")
 
         stackless.tasklet(_read)(r)
         stackless.tasklet(_write)(w)
         stackless.run()
 
-        assert ret == ['TEST']
+        assert ret == [b"TEST"]

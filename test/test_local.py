@@ -44,7 +44,7 @@ class Test_Local:
         r_list = []
         def f():
             try:
-                _ = d.a
+                d.a
             except AttributeError:
                 r_list.append(True)
 
@@ -60,7 +60,7 @@ class Test_Local:
         r_list = []
         def f():
             try:
-                _ = d.a
+                d.a
             except AttributeError:
                 r_list.append(True)
             d.a = 2
