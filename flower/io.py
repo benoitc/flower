@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -
 #
-# This file is part of flower.
-# See the NOTICE for more information.
+# This file is part of flower. See the NOTICE for more information.
 
 import pyuv
 from flower import stackless
