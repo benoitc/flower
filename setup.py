@@ -4,14 +4,8 @@ import sys
 
 py_version = sys.version_info[:2]
 
-PY3 = py_version[0] == 3
-
-if PY3:
-    if py_version < (3, 2):
-        raise RuntimeError('On Python 3, Flower requires Python 3.2 or better')
-else:
-    if py_version < (2, 6):
-        raise RuntimeError('On Python 2, Flower requires Python 2.6 or better')
+if py_version < (2, 6):
+    raise RuntimeError('On Python 2, Flower requires Python 2.6 or better')
 
 
 CLASSIFIERS = [
@@ -21,9 +15,13 @@ CLASSIFIERS = [
     'License :: OSI Approved :: MIT License',
     'Operating System :: OS Independent',
     'Programming Language :: Python',
+    'Programming Language :: Python :: 2',
     'Programming Language :: Python :: 2.6',
     'Programming Language :: Python :: 2.7',
     'Programming Language :: Python :: 3',
+    'Programming Language :: Python :: 3.0',
+    'Programming Language :: Python :: 3.1',
+    'Programming Language :: Python :: 3.2';
     'Topic :: Software Development :: Libraries']
 
 
