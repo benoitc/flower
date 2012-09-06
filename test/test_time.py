@@ -2,13 +2,19 @@
 #
 # This file is part of flower. See the NOTICE for more information.
 
+import os
 import time
 
 import pytest
+from py.test import skip
 
 from flower import stackless
 from flower.time import Ticker, Timeout, with_timeout, sleep, timeout_
 
+IS_TRAVIS = False
+
+if os.environ.get('TRAVIS') and os.environ.get('TRAVIS') is not None:
+    IS_TRAVIS = True
 
 class Test_Time:
 
@@ -32,6 +38,8 @@ class Test_Time:
 
 
     def test_simple_sleep(self):
+        if IS_TRAVIS:
+            skip()
         start = time.time()
         sleep(0.02)
         delay = time.time() - start
