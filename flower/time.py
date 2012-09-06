@@ -32,12 +32,8 @@ def sleep(delay=0, ref=True):
         handle.stop()
         c.send(None)
 
-    if delay == 0:
-        w = pyuv.Idle(stackless.get_loop())
-        w.start(wakeup)
-    else:
-        w = pyuv.Timer(stackless.get_loop())
-        w.start(wakeup, delay, delay)
+    w = pyuv.Timer(stackless.get_loop())
+    w.start(wakeup, delay, delay)
 
     if not ref:
         w.unref()
@@ -47,7 +43,16 @@ def sleep(delay=0, ref=True):
 def idle(ref=True):
     """ By using this function the current tasklet will be executed next
     time the event loop is idle"""
-    sleep(delay=0, ref=ref)
+    c = stackless.channel()
+    def wakeup(handle):
+        handle.stop()
+        c.send(None)
+
+    w = pyuv.Idle(stackless.get_loop())
+    w.start(wakeup)
+    if not ref:
+        w.unref()
+    c.receive()
 
 class Timeout(BaseException):
     """\
