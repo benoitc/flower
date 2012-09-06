@@ -45,15 +45,16 @@ class Registry(object):
         else:
             actor_id = actor
 
-        del self._actors[actor_id]
+        with self._lock:
+            del self._actors[actor_id]
 
-        # remove the actor from registered names as well
-        try:
-            names = self._names_by_id.pop(actor_id)
-            for n in names:
-                del self._registered_names[n]
-        except KeyError:
-            pass
+            # remove the actor from registered names as well
+            try:
+                names = self._names_by_id.pop(actor_id)
+                for n in names:
+                    del self._registered_names[n]
+            except KeyError:
+                pass
 
     def register(self, name, actor=None):
         """ register an actor id with a name in the registry """
@@ -91,8 +92,9 @@ class Registry(object):
         else:
             actor_id = self._registered_names[name]
             names  = self._names_by_id[actor_id]
-            del self._registered_names[name]
-            del names[operator.indexOf(names, name)]
+            with self._lock:
+                del self._registered_names[name]
+                del names[operator.indexOf(names, name)]
 
     def by_id(self, actor):
         """ get an actor by it's id """
