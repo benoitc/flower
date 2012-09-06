@@ -5,15 +5,12 @@
 
 from collections import deque
 import operator
-import os
 import sys
-import tempfile
-import threading
 
 if sys.version_info[0] <= 2:
     import thread
 else:
-    import _thread as thread
+    import _thread as thread # python 3 fallback
 
 _tls = thread._local()
 
@@ -559,7 +556,6 @@ class _Scheduler(object):
         return current
 
     def schedule(self, retval=None):
-        mtask = self.getmain()
         curr = self.getcurrent()
 
         if retval is None:
@@ -603,7 +599,7 @@ class _Scheduler(object):
 
     def __contains__(self, value):
         try:
-            operator.indexOf(_squeue, value)
+            operator.indexOf(self._squeue, value)
             return True
         except ValueError:
             return False
@@ -680,5 +676,5 @@ def run():
 
 # bootstrap the scheduler
 def _bootstrap():
-    _ = get_scheduler()
+    get_scheduler()
 _bootstrap()
