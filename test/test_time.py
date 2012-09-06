@@ -35,7 +35,7 @@ class Test_Time:
         start = time.time()
         sleep(0.02)
         delay = time.time() - start
-        assert 0.02 - 0.003 <= delay < 0.02 + 0.02, delay
+        assert 0.02 - 0.004 <= delay < 0.02 + 0.02, delay
 
 
     def test_sleep(self):
