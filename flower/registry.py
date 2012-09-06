@@ -4,7 +4,6 @@
 
 import operator
 import threading
-from weakref import WeakKeyDictionary, WeakValueDictionary
 
 import six
 
@@ -16,7 +15,7 @@ class Registry(object):
 
     # share state between instances
     __shared_state__ = dict(
-            _actors = WeakValueDictionary(),
+            _actors = {},
             _registered_names = {},
             _names_by_id = {}
     )
