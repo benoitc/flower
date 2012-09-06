@@ -4,7 +4,7 @@
 
 import pytest
 
-from flower.registry import Registry
+from flower.registry import Registry, registry, insert, remove
 from flower import stackless
 
 class Test_Registry:
@@ -136,7 +136,15 @@ class Test_Registry:
 
         del r['test']
 
+    def test_main_registry(self):
+        r = Registry()
 
+        class _Dummy(object):
+            pass
 
+        o = _Dummy()
+        oid = registry.insert(o)
 
-
+        assert oid in r
+        del registry[oid]
+        assert oid not in r

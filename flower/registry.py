@@ -129,3 +129,10 @@ class Registry(object):
     def __iter__(self):
         for actor in self._actors:
             yield self._actors[actor]
+
+
+registry = Registry()
+insert = registry.insert
+remove = registry.remove
+register = registry.register
+unregister = registry.unregister
