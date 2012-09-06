@@ -444,7 +444,8 @@ class Test_Stackless:
             b = stackless.bomb(*sys.exc_info())
         assert b.type is ZeroDivisionError
         if six.PY3:
-            assert str(b.value).startswith('division by zero')
+            assert (str(b.value).startswith('division by zero') or
+                    str(b.value).startswith('int division'))
         else:
             assert str(b.value).startswith('integer division')
         assert b.traceback is not None

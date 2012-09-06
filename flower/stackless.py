@@ -35,7 +35,6 @@ except ImportError:
 CoroutineExit = TaskletExit
 _global_task_id = 0
 
-
 def _coroutine_getcurrent():
     try:
         return _tls.current_coroutine
@@ -369,7 +368,7 @@ class tasklet(coroutine):
         after it has been run, in order to keep its identity.
         Note that a tasklet can only be bound when it doesn't have a frame.
         """
-        if not callable(func):
+        if not six.callable(func):
             raise TypeError('tasklet function must be a callable')
         self.func = func
 
