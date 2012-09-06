@@ -38,19 +38,16 @@ class Registry(object):
     def remove(self, actor=None):
         """ remove an actor from the registery """
         if actor is None:
-            actor = stackless.getcurrent()
-            actor_id = id(actor)
+            actor = id(stackless.getcurrent())
         elif not isinstance(actor, int):
-            actor_id = id(actor)
-        else:
-            actor_id = actor
+            actor = id(actor)
 
         with self._lock:
-            del self._actors[actor_id]
+            del self._actors[actor]
 
             # remove the actor from registered names as well
             try:
-                names = self._names_by_id.pop(actor_id)
+                names = self._names_by_id.pop(actor)
                 for n in names:
                     del self._registered_names[n]
             except KeyError:
