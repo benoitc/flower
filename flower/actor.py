@@ -4,6 +4,7 @@
 
 import copy
 from collections import deque
+import inspect
 import operator
 import sys
 import threading
@@ -126,7 +127,6 @@ class Actor(core.tasklet):
         self.ref = ActorRef(self)
         self.links = []
         self.mailbox = Mailbox()
-        self.scheduler = core.get_scheduler()
 
     @classmethod
     def spawn(cls, func, *args, **kwargs):
@@ -181,7 +181,16 @@ class Actor(core.tasklet):
         if hasattr(task, 'mailbox'):
             return
 
-        return type('AnonymousActor', (cls, ), task)
+        actor = cls()
+        task.__class__ = Actor
+        for n, m in inspect.getmembers(actor):
+            if not hasattr(task, n):
+                setattr(task, n, m)
+
+        setattr(task, 'mailbox', actor.mailbox)
+        setattr(task, 'ref', actor.ref)
+        setattr(task, 'links', actor.links)
+        return task
 
     def send(self, msg):
         self.mailbox.send(msg)
@@ -191,6 +200,7 @@ class Actor(core.tasklet):
 
     def flush(self):
         return self.mailbox.flush()
+
 
 
 spawn = Actor.spawn

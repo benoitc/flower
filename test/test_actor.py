@@ -2,7 +2,8 @@
 #
 # This file is part of flower. See the NOTICE for more information.
 
-from flower.actor import receive, send, spawn, spawn_after, ActorRef
+from flower.actor import (receive, send, spawn, spawn_after, ActorRef,
+        send_after, wrap, Actor)
 from flower import core
 
 import time
@@ -10,7 +11,6 @@ import time
 class Test_Actor:
 
     def test_simple(self):
-
         r_list = []
         def f():
             r_list.append(True)
@@ -22,6 +22,27 @@ class Test_Actor:
 
         core.run()
 
+        assert r_list == [True]
+        assert pid.actor is None
+        assert pid.is_alive is False
+
+    def test_wrap(self):
+        r_list = []
+        def f():
+            r_list.append(True)
+
+        t = core.tasklet(f)()
+        assert not hasattr(t, 'mailbox')
+        a = wrap(t)
+        assert isinstance(a, Actor)
+        assert hasattr(a, 'mailbox')
+        assert hasattr(a, 'ref')
+
+        pid = a.ref
+        assert isinstance(pid, ActorRef)
+        assert pid.ref == 1
+
+        core.run()
         assert r_list == [True]
         assert pid.actor is None
         assert pid.is_alive is False
@@ -50,7 +71,7 @@ class Test_Actor:
         core.run()
 
         assert messages == ['hello', ' ', 'world']
-        assert sources == [2]
+        assert sources == [3]
 
     def test_multiple_producers(self):
         messages = []
@@ -81,7 +102,7 @@ class Test_Actor:
         core.run()
 
         assert len(messages) == 5
-        assert sources == [4, 5]
+        assert sources == [5, 6]
 
     def test_spawn_after(self):
         r_list = []
@@ -94,6 +115,21 @@ class Test_Actor:
         core.run()
 
         end = r_list[0]
+        diff = end - start
+        assert 0.29 <= diff <= 0.31
 
+    def test_send_after(self):
+        r_list = []
+        def f():
+            receive()
+            r_list.append(time.time())
+
+        ref = spawn(f)
+        start = time.time()
+        send_after(0.3, ref, None)
+
+        core.run()
+
+        end = r_list[0]
         diff = end - start
         assert 0.29 <= diff <= 0.31
