@@ -21,3 +21,4 @@ man/
 include/
 html/
 .tox
+htmlcov
