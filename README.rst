@@ -7,6 +7,12 @@ Flower
 collection of modules to build distributed and reliable concurrent
 systems in Python.
 
+Requirements
+------------
+
+- Python from 2.6 to 3.x
+- A platform supported by `libuv <https://github.com/joyent/libuv>`
+
 Simple example
 --------------
 
