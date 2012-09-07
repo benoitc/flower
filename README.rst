@@ -7,7 +7,6 @@ Flower
 collection of modules to build distributed and reliable concurrent
 systems in Python.
 
-
 Simple example
 --------------
 
@@ -55,3 +54,30 @@ should return::
     got message from 1: world
     got message from 2: new
     got message from 2: world
+
+
+Installation
+------------
+
+Flower requires Python superior to 2.6 (yes Python 3 is supported)
+
+To install flower using pip you must make sure you have a
+recent version of distribute installed::
+
+    $ curl -O http://python-distribute.org/distribute_setup.py
+    $ sudo python distribute_setup.py
+    $ easy_install pip
+
+
+For now flower can only be installed from sources. To install or upgrade to the latest released version of flower::
+
+    $ git clone https://github.com/benoitc/flower.git
+    $ cd flower && pip install -r requirements.txt
+
+License
+-------
+
+flower is available in the public domain (see UNLICENSE). flower is also
+optionally available under the MIT License (see LICENSE), meant
+especially for jurisdictions that do not recognize public domain
+works.
