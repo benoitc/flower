@@ -33,12 +33,12 @@ class Test_Actor:
 
         t = core.tasklet(f)()
         assert not hasattr(t, 'mailbox')
-        a = wrap(t)
-        assert isinstance(a, Actor)
-        assert hasattr(a, 'mailbox')
-        assert hasattr(a, 'ref')
+        wrap(t)
+        assert isinstance(t, Actor)
+        assert hasattr(t, 'mailbox')
+        assert hasattr(t, 'ref')
 
-        pid = a.ref
+        pid = t.ref
         assert isinstance(pid, ActorRef)
         assert pid.ref == 1
 
