@@ -21,15 +21,14 @@ function to feed it.
 
 .. code-block:: python
 
-        from flower import stackless
-        from flower.actor import spawn, receive, send
+        import flower
 
         messages = []
         sources = []
         def consumer():
             # wait for coming message in the current actor
             while True:
-                source, msg = receive()
+                source, msg = flower.receive()
                 if not msg:
                     break
                 print("got message from %s: %s" % (source.ref, msg))
@@ -38,18 +37,18 @@ function to feed it.
             # an actor sending messages to the consumer
             msg = ['hello', 'world']
             for s in msg:
-                send(ref, s)
+                flower.send(ref, s)
 
         def publisher2(ref):
             msg = ['brave', 'new', 'world', '']
             for s in msg:
-                send(ref, s)
+                flower.send(ref, s)
 
-        ref_consumer = spawn(consumer)
-        spawn(publisher1, ref_consumer)
-        spawn(publisher2, ref_consumer)
+        ref_consumer = flower.spawn(consumer)
+        flower.spawn(publisher1, ref_consumer)
+        flower.spawn(publisher2, ref_consumer)
 
-        stackless.run()
+        flower.run()
 
 
 should return::

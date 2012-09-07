@@ -1,11 +1,14 @@
 import threading
-from flower import stackless
 import sys
 if sys.version_info[0] <= 2:
     import thread
 else:
     import _thread as thread
-commandChannel = stackless.channel()
+
+
+import flower
+
+commandChannel = flower.channel()
 
 def master_func():
     commandChannel.send("ECHO 1")
@@ -23,9 +26,9 @@ def slave_func():
     print("SLAVE ENDING")
 
 def scheduler_run(tasklet_func):
-    t = stackless.tasklet(tasklet_func)()
+    t = flower.tasklet(tasklet_func)()
     while t.alive:
-        stackless.run()
+        flower.run()
 
 th = threading.Thread(target=scheduler_run, args=(master_func,))
 th.start()

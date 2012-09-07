@@ -1,5 +1,4 @@
-from flower import stackless
-from flower.actor import spawn, receive, send
+from flower import spawn, receive, send, run
 
 messages = []
 sources = []
@@ -26,4 +25,4 @@ ref_consumer = spawn(consumer)
 spawn(publisher1, ref_consumer)
 spawn(publisher2, ref_consumer)
 
-stackless.run()
+run()
