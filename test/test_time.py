@@ -8,7 +8,7 @@ import time
 import pytest
 from py.test import skip
 
-from flower import stackless
+from flower import core
 from flower.time import Ticker, Timeout, with_timeout, sleep, timeout_
 
 IS_TRAVIS = False
@@ -31,8 +31,8 @@ class Test_Time:
                 i += 1
             ticker.stop()
 
-        tf = stackless.tasklet(f)()
-        stackless.run()
+        tf = core.tasklet(f)()
+        core.run()
 
         assert len(rlist) == 3
 
@@ -56,9 +56,9 @@ class Test_Time:
         def f1():
             rlist.append('b')
 
-        stackless.tasklet(f)()
-        stackless.tasklet(f1)()
-        stackless.run()
+        core.tasklet(f)()
+        core.tasklet(f1)()
+        core.run()
 
         assert rlist == ['b', 'a']
 
@@ -73,9 +73,9 @@ class Test_Time:
         def f1():
             rlist.append('b')
 
-        stackless.tasklet(f)()
-        stackless.tasklet(f1)()
-        stackless.run()
+        core.tasklet(f)()
+        core.tasklet(f1)()
+        core.run()
 
         assert rlist == ['b', 'a']
 
@@ -86,7 +86,7 @@ class Test_Time:
             timeout.start()
 
             try:
-                stackless.run()
+                core.run()
                 raise AssertionError('Must raise Timeout')
 
             finally:
@@ -99,15 +99,15 @@ class Test_Time:
             timeout = Timeout(0.01)
             timeout.start()
             try:
-                stackless.schedule()
+                core.schedule()
                 raise AssertionError('Must raise Timeout')
             except Timeout:
                 raised.append(True)
             finally:
                 timeout.cancel()
 
-        stackless.tasklet(f)()
-        stackless.run()
+        core.tasklet(f)()
+        core.run()
 
         assert raised == [True]
 
@@ -118,18 +118,18 @@ class Test_Time:
             timeout = Timeout(0.01)
             timeout.start()
             try:
-                stackless.schedule()
+                core.schedule()
                 raise AssertionError('Must raise Timeout')
             except Timeout:
                 rlist.append(True)
             finally:
                 timeout.cancel()
-            stackless.schedule()
+            core.schedule()
 
             rlist.append("test")
 
-        stackless.tasklet(f)()
-        stackless.run()
+        core.tasklet(f)()
+        core.run()
 
         assert rlist == [True, "test"]
 
@@ -137,14 +137,14 @@ class Test_Time:
     def test_timeout_with(self):
         with pytest.raises(Timeout):
             with Timeout(0.02):
-                stackless.run()
+                core.run()
                 raise AssertionError('Must raise Timeout')
 
     def test_with_timeout(self):
         with pytest.raises(Timeout):
             with_timeout(0.01, sleep, 0.2)
 
-            stackless.run()
+            core.run()
 
     def test_timeout_decorator(self):
 

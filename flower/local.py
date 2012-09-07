@@ -3,7 +3,7 @@
 # This file is part of flower. See the NOTICE for more information.
 
 import weakref
-from flower.stackless import getcurrent
+from flower.core import getcurrent
 
 
 class local(object):

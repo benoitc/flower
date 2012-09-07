@@ -3,7 +3,7 @@
 # This file is part of flower. See the NOTICE for more information.
 
 from flower.actor import receive, send, spawn, ActorRef
-from flower import stackless
+from flower import core
 
 
 class Test_Actor:
@@ -19,7 +19,7 @@ class Test_Actor:
         assert pid.ref == 0
         assert hasattr(pid.actor, 'mailbox')
 
-        stackless.run()
+        core.run()
 
         assert r_list == [True]
         assert pid.actor is None
@@ -46,7 +46,7 @@ class Test_Actor:
         pid0 = spawn(f)
         pid1 = spawn(f1, pid0)
 
-        stackless.run()
+        core.run()
 
         assert messages == ['hello', ' ', 'world']
         assert sources == [2]
@@ -77,7 +77,7 @@ class Test_Actor:
         pid1 = spawn(f1, pid0)
         pid2 = spawn(f2, pid0)
 
-        stackless.run()
+        core.run()
 
         assert len(messages) == 5
         assert sources == [4, 5]

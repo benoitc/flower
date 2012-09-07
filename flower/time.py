@@ -6,16 +6,16 @@
 time = __import__('time').time
 
 import pyuv
-from flower import stackless
+from flower import core
 
-class Ticker(stackless.channel):
+class Ticker(core.channel):
     """A Ticker holds a synchronous channel that delivers `ticks' of a
     clock at intervals."""
 
     def __init__(self, interval, label=''):
         super(Ticker, self).__init__(label=label)
         self._interval = interval
-        self._timer = pyuv.Timer(stackless.get_loop())
+        self._timer = pyuv.Timer(core.get_loop())
         self._timer.start(self._tick, interval, interval)
 
     def _tick(self, handle):
@@ -27,12 +27,12 @@ class Ticker(stackless.channel):
 def sleep(delay=0, ref=True):
     """ sleep the current tasklet for a while, if ref is False, it won't
     block the loop if it quit"""
-    c = stackless.channel()
+    c = core.channel()
     def wakeup(handle):
         handle.stop()
         c.send(None)
 
-    w = pyuv.Timer(stackless.get_loop())
+    w = pyuv.Timer(core.get_loop())
     w.start(wakeup, delay, delay)
 
     if not ref:
@@ -43,12 +43,12 @@ def sleep(delay=0, ref=True):
 def idle(ref=True):
     """ By using this function the current tasklet will be executed next
     time the event loop is idle"""
-    c = stackless.channel()
+    c = core.channel()
     def wakeup(handle):
         handle.stop()
         c.send(None)
 
-    w = pyuv.Idle(stackless.get_loop())
+    w = pyuv.Idle(core.get_loop())
     w.start(wakeup)
     if not ref:
         w.unref()
@@ -57,7 +57,7 @@ def idle(ref=True):
 def defer(seconds, fun, *args, **kwargs):
 
     def _defer():
-        loop = stackless.get_loop()
+        loop = core.get_loop()
         c = Ticker(seconds)
         try:
             c.receive()
@@ -65,7 +65,7 @@ def defer(seconds, fun, *args, **kwargs):
             c.stop()
         fun(*args, **kwargs)
 
-    stackless.tasklet(_defer)()
+    core.tasklet(_defer)()
 
 
 
@@ -99,10 +99,10 @@ class Timeout(BaseException):
         if self.seconds is None:
             return
 
-        self._current_task = stackless.getcurrent()
-        self._timer = pyuv.Timer(stackless.get_loop())
+        self._current_task = core.getcurrent()
+        self._timer = pyuv.Timer(core.get_loop())
         self._timer.start(self._throw, self.seconds, 0)
-        stackless.wakeup_loop()
+        core.wakeup_loop()
 
     def _throw(self, handle):
         # stop the timer

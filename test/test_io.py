@@ -6,7 +6,7 @@ import os
 import tempfile
 
 from py.test import skip
-from flower import stackless
+from flower import core
 from flower.io import IOChannel, UV_READABLE
 
 class Test_IO:
@@ -24,8 +24,8 @@ class Test_IO:
         def _write(fd):
             os.write(fd, b"TEST")
 
-        stackless.tasklet(_read)(r)
-        stackless.tasklet(_write)(w)
-        stackless.run()
+        core.tasklet(_read)(r)
+        core.tasklet(_write)(w)
+        core.run()
 
         assert ret == [b"TEST"]

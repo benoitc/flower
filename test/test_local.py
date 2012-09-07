@@ -5,7 +5,7 @@
 import pytest
 from py.test import skip
 from flower.local import local
-from flower import stackless
+from flower import core
 
 class Test_Local:
 
@@ -48,8 +48,8 @@ class Test_Local:
             except AttributeError:
                 r_list.append(True)
 
-        stackless.tasklet(f)()
-        stackless.schedule()
+        core.tasklet(f)()
+        core.schedule()
 
         assert r_list == [True]
 
@@ -67,8 +67,8 @@ class Test_Local:
             if d.a == 2:
                 r_list.append(True)
 
-        stackless.tasklet(f)()
-        stackless.schedule()
+        core.tasklet(f)()
+        core.schedule()
 
         assert r_list == [True, True]
         assert d.a == 1

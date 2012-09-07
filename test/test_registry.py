@@ -7,7 +7,7 @@ import pytest
 from flower.actor import spawn, ActorRef
 from flower.registry import (registry, register, unregister,
         registered, Registry)
-from flower import stackless
+from flower import core
 
 
 
@@ -27,7 +27,7 @@ class Test_Registry:
         del registry[pid]
         assert registry["test"] is None
 
-        stackless.run()
+        core.run()
 
     def test_registered(self):
         r_list = []

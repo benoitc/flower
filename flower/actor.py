@@ -17,13 +17,13 @@ else:
 import pyuv
 import six
 
-from flower import stackless
+from flower import core
 from flower.registry import registry
 from flower.time import Timeout, sleep, defer
 
 
 def self():
-    return stackless.getcurrent()
+    return core.getcurrent()
 
 
 class ActorRef(object):
@@ -84,7 +84,7 @@ class Mailbox(object):
 
     def __init__(self):
         self.messages = deque()
-        self.channel = stackless.channel()
+        self.channel = core.channel()
         self._lock = threading.RLock()
 
     def send(self, msg):
@@ -117,16 +117,16 @@ class Mailbox(object):
     def clear(self):
         self.messages.clear()
 
-class Actor(stackless.tasklet):
+class Actor(core.tasklet):
 
     """ An actor is like a tasklet but with a mailbox. """
 
     def __init__(self):
-        stackless.tasklet.__init__(self)
+        core.tasklet.__init__(self)
         self.ref = ActorRef(self)
         self.links = []
         self.mailbox = Mailbox()
-        self.scheduler = stackless.get_scheduler()
+        self.scheduler = core.get_scheduler()
 
     @classmethod
     def spawn(cls, func, *args, **kwargs):
@@ -142,7 +142,7 @@ class Actor(stackless.tasklet):
 
     @classmethod
     def spawn_link(cls, func, *args, **kwargs):
-        curr = stackless.getcurrent()
+        curr = core.getcurrent()
         if not hasattr(curr, 'mailbox'):
             curr = cls.wrap(curr)
 
@@ -161,7 +161,7 @@ class Actor(stackless.tasklet):
             instance.setup(func)
             sleep(0.0)
 
-        t = pyuv.Timer(stackless.get_loop())
+        t = pyuv.Timer(core.get_loop())
         t.start(_func, seconds, seconds)
         return instance.ref
 
@@ -203,11 +203,11 @@ def maybe_wrap(actor):
 
 def send(dest, msg):
     """ send a message to the destination """
-    source = maybe_wrap(stackless.getcurrent())
+    source = maybe_wrap(core.getcurrent())
 
     if isinstance(dest, six.string_types):
         dest = registry[dest]
-    elif isinstance(dest, stackless.tasklet):
+    elif isinstance(dest, core.tasklet):
         dest = maybe_wrap(dest)
 
     mail = Message(source, dest, msg)
@@ -219,19 +219,19 @@ def send_after(seconds, dest, msg):
     if not seconds:
         return send(dest, msg)
 
-    source = maybe_wrap(stackless.getcurrent())
+    source = maybe_wrap(core.getcurrent())
     if isinstance(dest, six.string_types):
         dest = registry[dest]
-    elif isinstance(dest, stackless.tasklet):
+    elif isinstance(dest, core.tasklet):
         dest = maybe_wrap(dest)
 
     mail = Message(source, dest, msg)
     mail.send_after(seconds)
 
 def receive():
-    curr = maybe_wrap(stackless.getcurrent())
+    curr = maybe_wrap(core.getcurrent())
     return curr.receive()
 
 def flush():
-    curr = maybe_wrap(stackless.getcurrent())
+    curr = maybe_wrap(core.getcurrent())
     curr.flush()

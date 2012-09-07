@@ -8,7 +8,7 @@ import weakref
 
 import six
 
-from flower import stackless
+from flower import core
 from flower.local import local
 
 _local = local()
@@ -65,10 +65,10 @@ class Registry(object):
 
     def registered(self, ref=None):
         """ get an actor by it's ref """
-        print(type(stackless.getcurrent()))
+        print(type(core.getcurrent()))
         if ref is None:
             try:
-                ref = stackless.getcurrent().ref
+                ref = core.getcurrent().ref
             except AttributeError:
                 return []
 

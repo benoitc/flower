@@ -4,7 +4,7 @@
 
 from __future__ import absolute_import
 from py.test import skip
-from flower import stackless
+from flower import core
 
 SHOW_STRANGE = False
 
@@ -26,18 +26,18 @@ class Test_Stackless:
 
         def g():
             rlist.append('g')
-            stackless.schedule()
+            core.schedule()
 
         def main():
             rlist.append('m')
-            cg = stackless.tasklet(g)()
-            cf = stackless.tasklet(f)()
-            stackless.run()
+            cg = core.tasklet(g)()
+            cf = core.tasklet(f)()
+            core.run()
             rlist.append('m')
 
         main()
 
-        assert stackless.getcurrent() is stackless.getmain()
+        assert core.getcurrent() is core.getmain()
         assert rlist == 'm g f m'.split()
 
     def test_with_channel(self):
@@ -71,12 +71,12 @@ class Test_Stackless:
 
         for preference in [-1, 0, 1]:
             rlist = []
-            ch = stackless.channel()
+            ch = core.channel()
             ch.preference = preference
-            t1 = stackless.tasklet(f)(ch)
-            t2 = stackless.tasklet(g)(ch)
+            t1 = core.tasklet(f)(ch)
+            t2 = core.tasklet(g)(ch)
 
-            stackless.run()
+            core.run()
 
             assert len(rlist) == 20
             assert rlist == pref[preference]
@@ -89,14 +89,14 @@ class Test_Stackless:
 
         def counter(n, ch):
             for i in xrange(n):
-                stackless.schedule()
+                core.schedule()
             ch.send(n)
 
-        ch = stackless.channel()
+        ch = core.channel()
         for each in numbers:
-            stackless.tasklet(counter)(each, ch)
+            core.tasklet(counter)(each, ch)
 
-        stackless.run()
+        core.run()
 
         rlist = []
         while ch.balance:
@@ -114,15 +114,15 @@ class Test_Stackless:
         rlist = []
         def counter(n, ch):
             for i in xrange(n):
-                stackless.schedule()
+                core.schedule()
             ch.receive()
             rlist.append(n)
 
-        ch = stackless.channel()
+        ch = core.channel()
         for each in numbers:
-            stackless.tasklet(counter)(each, ch)
+            core.tasklet(counter)(each, ch)
 
-        stackless.run()
+        core.run()
 
         while ch.balance:
             ch.send(None)
@@ -134,25 +134,25 @@ class Test_Stackless:
         rlist = []
         def f():
             rlist.append('fb')
-            stackless.schedule()
+            core.schedule()
             rlist.append('fa')
 
         def g():
             rlist.append('gb')
-            stackless.schedule()
+            core.schedule()
             rlist.append('ga')
 
         def h():
             rlist.append('hb')
-            stackless.schedule()
+            core.schedule()
             rlist.append('ha')
 
-        tf = stackless.tasklet(f)()
-        tg = stackless.tasklet(g)()
-        th = stackless.tasklet(h)()
+        tf = core.tasklet(f)()
+        tg = core.tasklet(g)()
+        th = core.tasklet(h)()
 
         rlist.append('mb')
-        stackless.run()
+        core.run()
         rlist.append('ma')
 
         assert rlist == 'mb fb gb hb fa ga ha ma'.split()
@@ -165,25 +165,25 @@ class Test_Stackless:
 
         def g():
             rlist.append('bg')
-            stackless.schedule()
+            core.schedule()
             rlist.append('ag')
 
         def h():
             rlist.append('bh')
-            stackless.schedule()
+            core.schedule()
             rlist.append('ah')
 
-        tg = stackless.tasklet(g)()
-        tf = stackless.tasklet(f)()
-        th = stackless.tasklet(h)()
+        tg = core.tasklet(g)()
+        tf = core.tasklet(f)()
+        th = core.tasklet(h)()
 
         try:
-            stackless.run()
+            core.run()
             # cheating, can't test for ZeroDivisionError
         except ZeroDivisionError:
             rlist.append('E')
-        stackless.schedule()
-        stackless.schedule()
+        core.schedule()
+        core.schedule()
 
         assert rlist == "bg f E bh ag ah".split()
 
@@ -195,30 +195,30 @@ class Test_Stackless:
 
         def g():
             rlist.append('bg')
-            stackless.schedule()
+            core.schedule()
             rlist.append('ag')
 
         def h():
             rlist.append('bh')
-            stackless.schedule()
+            core.schedule()
             rlist.append('ah')
 
-        tg = stackless.tasklet(g)()
-        tf = stackless.tasklet(f)()
-        th = stackless.tasklet(h)()
+        tg = core.tasklet(g)()
+        tf = core.tasklet(f)()
+        th = core.tasklet(h)()
 
         try:
-            stackless.run()
+            core.run()
         except ZeroDivisionError:
             rlist.append('E')
-        stackless.schedule()
-        stackless.schedule()
+        core.schedule()
+        core.schedule()
 
         assert rlist == "bg f E bh ag ah".split()
 
     def test_kill(self):
         def f():pass
-        t =  stackless.tasklet(f)()
+        t =  core.tasklet(f)()
         t.kill()
         assert not t.alive
 
@@ -229,13 +229,13 @@ class Test_Stackless:
 
         def f():
             try:
-                stackless.schedule()
+                core.schedule()
             except TaskletExit:
                 global TaskletExit
                 taskletexit = True
                 raise
 
-            t =  stackless.tasklet(f)()
+            t =  core.tasklet(f)()
             t.run()
             assert t.alive
             t.kill()
@@ -243,16 +243,16 @@ class Test_Stackless:
             assert taskletexit
 
     def test_autocatch_taskletexit(self):
-        # Tests if TaskletExit is caught correctly in stackless.tasklet.setup().
+        # Tests if TaskletExit is caught correctly in core.tasklet.setup().
         def f():
-            stackless.schedule()
+            core.schedule()
 
-        t = stackless.tasklet(f)()
+        t = core.tasklet(f)()
         t.run()
         t.kill()
 
 
-    # tests inspired from simple stackless.com examples
+    # tests inspired from simple core.com examples
 
     def test_construction(self):
         output = []
@@ -262,26 +262,26 @@ class Test_Stackless:
         def aCallable(value):
             print_("aCallable:", value)
 
-        task = stackless.tasklet(aCallable)
+        task = core.tasklet(aCallable)
         task.setup('Inline using setup')
 
-        stackless.run()
+        core.run()
         assert output == [("aCallable:", 'Inline using setup')]
 
 
         del output[:]
-        task = stackless.tasklet(aCallable)
+        task = core.tasklet(aCallable)
         task('Inline using ()')
 
-        stackless.run()
+        core.run()
         assert output == [("aCallable:", 'Inline using ()')]
 
         del output[:]
-        task = stackless.tasklet()
+        task = core.tasklet()
         task.bind(aCallable)
         task('Bind using ()')
 
-        stackless.run()
+        core.run()
         assert output == [("aCallable:", 'Bind using ()')]
 
     def test_simple_channel(self):
@@ -297,35 +297,35 @@ class Test_Stackless:
             print_("receiving")
             print_(channel.receive())
 
-        ch=stackless.channel()
+        ch=core.channel()
 
-        task=stackless.tasklet(Sending)(ch)
+        task=core.tasklet(Sending)(ch)
 
         # Note: the argument, schedule is taking is the value,
         # schedule returns, not the task that runs next
 
-        #stackless.schedule(task)
-        stackless.schedule()
-        task2=stackless.tasklet(Receiving)(ch)
-        #stackless.schedule(task2)
-        stackless.schedule()
+        #core.schedule(task)
+        core.schedule()
+        task2=core.tasklet(Receiving)(ch)
+        #core.schedule(task2)
+        core.schedule()
 
-        stackless.run()
+        core.run()
 
         assert output == [('sending',), ('receiving',), ('foo',)]
 
     def test_balance_zero(self):
-        ch=stackless.channel()
+        ch=core.channel()
         assert ch.balance == 0
 
     def test_balance_send(self):
         def Sending(channel):
             channel.send("foo")
 
-        ch=stackless.channel()
+        ch=core.channel()
 
-        task=stackless.tasklet(Sending)(ch)
-        stackless.run()
+        task=core.tasklet(Sending)(ch)
+        core.run()
 
         assert ch.balance == 1
 
@@ -333,10 +333,10 @@ class Test_Stackless:
         def Receiving(channel):
             channel.receive()
 
-        ch=stackless.channel()
+        ch=core.channel()
 
-        task=stackless.tasklet(Receiving)(ch)
-        stackless.run()
+        task=core.tasklet(Receiving)(ch)
+        core.run()
 
         assert ch.balance == -1
 
@@ -348,9 +348,9 @@ class Test_Stackless:
         def f(i):
             print_(i)
 
-        stackless.tasklet(f)(1)
-        stackless.tasklet(f)(2)
-        stackless.run()
+        core.tasklet(f)(1)
+        core.tasklet(f)(2)
+        core.run()
 
         assert output == [(1,), (2,)]
 
@@ -362,9 +362,9 @@ class Test_Stackless:
         def f(i):
             print_(i)
 
-        stackless.tasklet(f)(1)
-        stackless.tasklet(f)(2)
-        stackless.schedule()
+        core.tasklet(f)(1)
+        core.tasklet(f)(2)
+        core.schedule()
 
         assert output == [(1,), (2,)]
 
@@ -376,12 +376,12 @@ class Test_Stackless:
 
         def Loop(i):
             for x in range(3):
-                stackless.schedule()
+                core.schedule()
                 print_("schedule", i)
 
-        stackless.tasklet(Loop)(1)
-        stackless.tasklet(Loop)(2)
-        stackless.run()
+        core.tasklet(Loop)(1)
+        core.tasklet(Loop)(2)
+        core.run()
 
         assert output == [('schedule', 1), ('schedule', 2),
                           ('schedule', 1), ('schedule', 2),
@@ -392,19 +392,19 @@ class Test_Stackless:
         cb = []
         def callback_function(chan, task, sending, willblock):
             cb.append((chan, task, sending, willblock))
-        stackless.set_channel_callback(callback_function)
+        core.set_channel_callback(callback_function)
         def f(chan):
             chan.send('hello')
             val = chan.receive()
             res.append(val)
 
-        chan = stackless.channel()
-        task = stackless.tasklet(f)(chan)
+        chan = core.channel()
+        task = core.tasklet(f)(chan)
         val = chan.receive()
         res.append(val)
         chan.send('world')
         assert res == ['hello','world']
-        maintask = stackless.getmain()
+        maintask = core.getmain()
         assert cb == [
             (chan, maintask, 0, 1),
             (chan, task, 1, 0),
@@ -418,16 +418,16 @@ class Test_Stackless:
         def schedule_cb(prev, next):
             cb.append((prev, next))
 
-        stackless.set_schedule_callback(schedule_cb)
+        core.set_schedule_callback(schedule_cb)
         def f(i):
             res.append('A_%s' % i)
-            stackless.schedule()
+            core.schedule()
             res.append('B_%s' % i)
 
-        t1 = stackless.tasklet(f)(1)
-        t2 = stackless.tasklet(f)(2)
-        maintask = stackless.getmain()
-        stackless.run()
+        t1 = core.tasklet(f)(1)
+        t2 = core.tasklet(f)(2)
+        maintask = core.getmain()
+        core.run()
         assert res == ['A_1', 'A_2', 'B_1', 'B_2']
         assert len(cb) == 5
         assert cb[0] == (maintask, t1)
@@ -441,7 +441,7 @@ class Test_Stackless:
             1/0
         except:
             import sys
-            b = stackless.bomb(*sys.exc_info())
+            b = core.bomb(*sys.exc_info())
         assert b.type is ZeroDivisionError
         if six.PY3:
             assert (str(b.value).startswith('division by zero') or
@@ -461,47 +461,47 @@ class Test_Stackless:
                 assert exp.__class__ is Exception
                 assert str(exp) == 'test'
 
-        chan = stackless.channel()
-        t1 = stackless.tasklet(exp_recv)(chan)
-        t2 = stackless.tasklet(exp_sender)(chan)
-        stackless.run()
+        chan = core.channel()
+        t1 = core.tasklet(exp_recv)(chan)
+        t2 = core.tasklet(exp_sender)(chan)
+        core.run()
 
     def test_send_sequence(self):
         res = []
         lst = [1,2,3,4,5,6,None]
         iterable = iter(lst)
-        chan = stackless.channel()
+        chan = core.channel()
         def f(chan):
             r = chan.receive()
             while r:
                 res.append(r)
                 r = chan.receive()
 
-        t = stackless.tasklet(f)(chan)
+        t = core.tasklet(f)(chan)
         chan.send_sequence(iterable)
         assert res == [1,2,3,4,5,6]
 
     def test_getruncount(self):
-        assert stackless.getruncount() == 1
+        assert core.getruncount() == 1
         def with_schedule():
-            assert stackless.getruncount() == 2
+            assert core.getruncount() == 2
 
-        t1 = stackless.tasklet(with_schedule)()
-        assert stackless.getruncount() == 2
-        stackless.schedule()
+        t1 = core.tasklet(with_schedule)()
+        assert core.getruncount() == 2
+        core.schedule()
         def with_run():
-            assert stackless.getruncount() == 1
+            assert core.getruncount() == 1
 
-        t2 = stackless.tasklet(with_run)()
-        stackless.run()
+        t2 = core.tasklet(with_run)()
+        core.run()
 
     def test_schedule_return(self):
         def f():pass
-        t1= stackless.tasklet(f)()
-        r = stackless.schedule()
-        assert r is stackless.getmain()
-        t2 = stackless.tasklet(f)()
-        r = stackless.schedule('test')
+        t1= core.tasklet(f)()
+        r = core.schedule()
+        assert r is core.getmain()
+        t2 = core.tasklet(f)()
+        r = core.schedule('test')
         assert r == 'test'
 
     def test_simple_pipe(self):
@@ -509,9 +509,9 @@ class Test_Stackless:
             foo = X_in.receive()
             X_out.send(foo)
 
-        X, Y = stackless.channel(), stackless.channel()
-        t = stackless.tasklet(pipe)(X, Y)
-        stackless.run()
+        X, Y = core.channel(), core.channel()
+        t = core.tasklet(pipe)(X, Y)
+        core.run()
         X.send(42)
         assert Y.receive() == 42
 
@@ -525,8 +525,8 @@ class Test_Stackless:
             dprint('tnp_P ==== 3')
 
         def nest(X, Y):
-            X2, Y2 = stackless.channel(), stackless.channel()
-            t = stackless.tasklet(pipe)(X2, Y2)
+            X2, Y2 = core.channel(), core.channel()
+            t = core.tasklet(pipe)(X2, Y2)
             dprint('tnp_N ==== 1')
             X_Val = X.receive()
             dprint('tnp_N ==== 2')
@@ -537,8 +537,8 @@ class Test_Stackless:
             Y.send(Y2_Val)
             dprint('tnp_N ==== 5')
 
-        X, Y = stackless.channel(), stackless.channel()
-        t1 = stackless.tasklet(nest)(X, Y)
+        X, Y = core.channel(), core.channel()
+        t1 = core.tasklet(nest)(X, Y)
         X.send(13)
         dprint('tnp ==== 2')
         res = Y.receive()
@@ -560,9 +560,9 @@ class Test_Stackless:
             dprint('twt_S ==== 3')
 
         def wait_two(X, Y, Ret_chan):
-            Barrier = stackless.channel()
-            stackless.tasklet(sleep)(X, Barrier)
-            stackless.tasklet(sleep)(Y, Barrier)
+            Barrier = core.channel()
+            core.tasklet(sleep)(X, Barrier)
+            core.tasklet(sleep)(Y, Barrier)
             dprint('twt_W ==== 1')
             ret = Barrier.receive()
             dprint('twt_W ==== 2')
@@ -572,11 +572,11 @@ class Test_Stackless:
                 Ret_chan.send((2, ret[1]))
             dprint('twt_W ==== 3')
 
-        X = stackless.channel()
-        Y = stackless.channel()
-        Ret_chan = stackless.channel()
+        X = core.channel()
+        Y = core.channel()
+        Ret_chan = core.channel()
 
-        stackless.tasklet(wait_two)(X, Y, Ret_chan)
+        core.tasklet(wait_two)(X, Y, Ret_chan)
 
         dprint('twt ==== 1')
         Y.send(42)
@@ -592,10 +592,10 @@ class Test_Stackless:
     def test_schedule_return_value(self):
 
         def task(val):
-            value = stackless.schedule(val)
+            value = core.schedule(val)
             assert value == val
 
-        stackless.tasklet(task)(10)
-        stackless.tasklet(task)(5)
+        core.tasklet(task)(10)
+        core.tasklet(task)(5)
 
-        stackless.run()
+        core.run()
