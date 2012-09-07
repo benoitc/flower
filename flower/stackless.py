@@ -443,7 +443,6 @@ def _set_loop_task(task):
 def _unset_loop_task():
     _tls.loop_task = None
 
-
 class _LoopTask(tasklet):
 
     def __init__(self):
@@ -452,7 +451,6 @@ class _LoopTask(tasklet):
         self.func = self._run_loop
         # bind the coroutine
         self.setup()
-
 
     def setup(self, *argl, **argd):
         """
@@ -463,7 +461,6 @@ class _LoopTask(tasklet):
 
         func = self.func
         def _func():
-
             try:
                 try:
                     func(*argl, **argd)
@@ -637,7 +634,6 @@ def wakeup_loop():
     except AttributeError:
         get_loop()
         loop_task = _tls.loop_task
-
     loop_task.switch()
 
 def get_looptask():

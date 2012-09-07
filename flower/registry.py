@@ -4,20 +4,25 @@
 
 import operator
 import threading
+import weakref
 
 import six
 
 from flower import stackless
+from flower.local import local
+
+_local = local()
 
 class Registry(object):
     """ actors registry. This rgistry is used to keep a trace of created
     actors """
 
+    __slots__ = ['__dict__', '_lock']
+
     # share state between instances
     __shared_state__ = dict(
-            _actors = {},
             _registered_names = {},
-            _names_by_id = {}
+            _by_ref = {}
     )
 
     def __init__(self):
@@ -25,112 +30,85 @@ class Registry(object):
         self._lock = threading.RLock()
 
 
-    def insert(self, actor=None):
-        """ insert an actor instance in the registery """
-        if actor is None:
-            actor = stackless.getcurrent()
-
-        actor_id = id(actor)
-        self._actors[actor_id] = actor
-        return actor_id
-
-    def remove(self, actor=None):
-        """ remove an actor from the registery """
-        if actor is None:
-            actor = id(stackless.getcurrent())
-        elif not isinstance(actor, int):
-            actor = id(actor)
-
+    def register(self, name, ref):
+        """ register an actor ref with a name in the registry """
         with self._lock:
-            del self._actors[actor]
-
-            # remove the actor from registered names as well
-            try:
-                names = self._names_by_id.pop(actor)
-                for n in names:
-                    del self._registered_names[n]
-            except KeyError:
-                pass
-
-    def register(self, name, actor=None):
-        """ register an actor id with a name in the registry """
-        if actor is None:
-            actor = stackless.getcurrent()
-            actor_id = id(actor)
-        elif not isinstance(actor, int):
-            actor_id = id(actor)
-        else:
-            actor_id = actor
-
-        with self._lock:
-            if actor_id not in self._actors:
-                raise KeyError("Actor with %s id is unknown" % actor_id)
 
             if name in self._registered_names:
-                if self._registered_names[name] == actor_id:
+                if self._registered_names[name] == ref:
                     return
                 raise KeyError("An actor is already registered for this name")
 
-            self._registered_names[name] = actor_id
-            if not actor_id in self._names_by_id:
-                self._names_by_id[actor_id] = []
-            self._names_by_id[actor_id].append(name)
+            self._registered_names[name] = ref
+            if not ref in self._by_ref:
+                self._by_ref[ref] = [name]
+            else:
+                self._by_ref[ref].append(name)
 
-    def unregister(self, name):
-        """ unregister a name in the registery """
-
-        if isinstance(name, int):
-            names = self._names_by_id[name]
-            with self._lock:
-                for n in names:
-                    del self._registered_names[n]
-                del self._names_by_id[name]
-        else:
-            actor_id = self._registered_names[name]
-            names  = self._names_by_id[actor_id]
-            with self._lock:
-                del self._registered_names[name]
-                del names[operator.indexOf(names, name)]
-
-    def by_id(self, actor):
-        """ get an actor by it's id """
+    def unregister(self, ref_or_name):
+        """ unregister a name in the registery. If the name doesn't
+        exist we safely ignore it. """
         try:
-            return self._actors[actor]
-        except KeyError:
-            raise KeyError("Actor with %s id is unknown" % actor)
+            if isinstance(ref_or_name, six.string_types):
+                with self._lock:
+                    ref = self._registered_names[ref_or_name]
+                    names = self._by_ref[ref]
+                    del names[operator.indexOf(names, ref_or_name)]
+                    del self._registered_names[ref_or_name]
+            else:
+                with self._lock:
+                    names = self._by_ref[ref_or_name]
+                    for name in names:
+                        del self._registered_names[name]
+        except (KeyError, IndexError):
+            pass
+
+    def registered(self, ref=None):
+        """ get an actor by it's ref """
+        print(type(stackless.getcurrent()))
+        if ref is None:
+            try:
+                ref = stackless.getcurrent().ref
+            except AttributeError:
+                return []
+
+
+        print(ref)
+        print(self._by_ref)
+
+        if ref not in self._by_ref:
+            return []
+        print(self._by_ref[ref])
+        return sorted(self._by_ref[ref])
 
     def by_name(self, name):
         """ get an actor by name """
         try:
-            return self.by_id(self._registered_names[name])
+            return self._registered_names[name]
         except KeyError:
-            raise KeyError("Actor with %s name is unknown" % name)
+            return None
 
-    def __getitem__(self, actor):
-        if isinstance(actor, six.string_types):
-            return self.by_name(actor)
+    def __getitem__(self, ref_or_name):
+        if isinstance(ref_or_name, six.string_types):
+            return self.by_name(ref_or_name)
         else:
-            return self.by_id(actor)
+            return self.registered(ref_or_name)
 
-    def __delitem__(self, actor):
-        if isinstance(actor, six.string_types):
-            actor = self._registered_names[actor]
-        self.remove(actor)
+    def __delitem__(self, ref_or_name):
+        self.unregister(ref_or_name)
 
-    def __contains__(self, actor):
+    def __contains__(self, ref_or_name):
         with self._lock:
-            if isinstance(actor, six.string_types):
-                return actor in self._registered_names
+            if isinstance(ref_or_name, six.string_types):
+                return ref_or_name in self._registered_names
             else:
-                return actor in self._actors
+                return ref_or_name in self._by_ref
 
     def __iter__(self):
-        for actor in self._actors:
-            yield self._actors[actor]
+        return iter(self._registered_name.items())
 
 
 registry = Registry()
-insert = registry.insert
-remove = registry.remove
 register = registry.register
 unregister = registry.unregister
+registered = registry.registered

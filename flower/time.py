@@ -54,6 +54,21 @@ def idle(ref=True):
         w.unref()
     c.receive()
 
+def defer(seconds, fun, *args, **kwargs):
+
+    def _defer():
+        loop = stackless.get_loop()
+        c = Ticker(seconds)
+        try:
+            c.receive()
+        finally:
+            c.stop()
+        fun(*args, **kwargs)
+
+    stackless.tasklet(_defer)()
+
+
+
 class Timeout(BaseException):
     """\
     Raise *exception* in the current tasklet after given time period::
