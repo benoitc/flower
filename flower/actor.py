@@ -43,8 +43,6 @@ class ActorRef(object):
             self.ref = self._ref_count
             self._ref_count += 1
 
-        #registry.insert(self)
-
     def __str__(self):
         return "<actor:%s>" % self.ref
 
