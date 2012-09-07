@@ -155,11 +155,16 @@ class Actor(core.tasklet):
     def spawn_after(cls, seconds, func, *args, **kwargs):
         instance = cls()
 
-        def _fun():
-            instance.bind(func)
-            instance.setup(func)
+        # wrap func to be scheduled immediately
+        def _func():
+            func(*args, **kwargs)
+            sleep(0.0)
 
-        defer(seconds, _func)
+        def _deferred_spawn():
+            instance.bind(_func)
+            instance.setup()
+
+        defer(seconds, _deferred_spawn)
         return instance.ref
 
     def unlink(self, ref):

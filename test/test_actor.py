@@ -2,9 +2,10 @@
 #
 # This file is part of flower. See the NOTICE for more information.
 
-from flower.actor import receive, send, spawn, ActorRef
+from flower.actor import receive, send, spawn, spawn_after, ActorRef
 from flower import core
 
+import time
 
 class Test_Actor:
 
@@ -82,7 +83,7 @@ class Test_Actor:
         assert len(messages) == 5
         assert sources == [4, 5]
 
-    def spawn_after(self):
+    def test_spawn_after(self):
         r_list = []
         def f():
             r_list.append(time.time())
@@ -95,4 +96,4 @@ class Test_Actor:
         end = r_list[0]
 
         diff = end - start
-        assert 0.3 <= diff <= 0.31
+        assert 0.29 <= diff <= 0.31
