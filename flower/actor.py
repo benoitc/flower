@@ -155,14 +155,11 @@ class Actor(core.tasklet):
     def spawn_after(cls, seconds, func, *args, **kwargs):
         instance = cls()
 
-        def _fun(handle):
-            handle.stop()
+        def _fun():
             instance.bind(func)
             instance.setup(func)
-            sleep(0.0)
 
-        t = pyuv.Timer(core.get_loop())
-        t.start(_func, seconds, seconds)
+        defer(seconds, _func)
         return instance.ref
 
     def unlink(self, ref):

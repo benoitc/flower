@@ -82,4 +82,17 @@ class Test_Actor:
         assert len(messages) == 5
         assert sources == [4, 5]
 
+    def spawn_after(self):
+        r_list = []
+        def f():
+            r_list.append(time.time())
 
+        start = time.time()
+        spawn_after(0.3, f)
+
+        core.run()
+
+        end = r_list[0]
+
+        diff = end - start
+        assert 0.3 <= diff <= 0.31
