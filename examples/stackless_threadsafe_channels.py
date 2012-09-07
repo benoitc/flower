@@ -14,13 +14,13 @@ def master_func():
     commandChannel.send("QUIT")
 
 def slave_func():
-    print "SLAVE STARTING"
+    print("SLAVE STARTING")
     while 1:
         command = commandChannel.receive()
-        print "SLAVE:", command
+        print("SLAVE:", command)
         if command == "QUIT":
             break
-    print "SLAVE ENDING"
+    print("SLAVE ENDING")
 
 def scheduler_run(tasklet_func):
     t = stackless.tasklet(tasklet_func)()
