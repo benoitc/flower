@@ -177,7 +177,7 @@ class channel(object):
         else:
             # nobody is waiting
             sched = source.scheduler
-            source.blocked = d
+            source.blocked = 1
             self.queue.append(source)
             _scheduler_remove(getcurrent())
             do_schedule = True
@@ -227,5 +227,3 @@ _channel_callback = None
 def set_channel_callback(channel_cb):
     global _channel_callback
     _channel_callback = channel_cb
-
-
