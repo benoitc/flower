@@ -96,7 +96,7 @@ class Test_Time:
 
         raised = []
         def f():
-            timeout = Timeout(0.01)
+            timeout = Timeout(0.00001)
             timeout.start()
             try:
                 core.schedule()
@@ -118,7 +118,7 @@ class Test_Time:
             timeout = Timeout(0.01)
             timeout.start()
             try:
-                core.schedule()
+                sleep(0.1)
                 raise AssertionError('Must raise Timeout')
             except Timeout:
                 rlist.append(True)
@@ -136,8 +136,8 @@ class Test_Time:
 
     def test_timeout_with(self):
         with pytest.raises(Timeout):
-            with Timeout(0.02):
-                core.run()
+            with Timeout(0.01):
+                sleep(0.1)
                 raise AssertionError('Must raise Timeout')
 
     def test_with_timeout(self):

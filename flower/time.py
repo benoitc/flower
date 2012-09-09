@@ -5,8 +5,9 @@
 
 time = __import__('time').time
 
-import pyuv
 from flower import core
+from flower.core import timer
+from flower.core.util import from_nanotime
 
 class Ticker(core.channel):
     """A Ticker holds a synchronous channel that delivers `ticks' of a
@@ -15,44 +16,37 @@ class Ticker(core.channel):
     def __init__(self, interval, label=''):
         super(Ticker, self).__init__(label=label)
         self._interval = interval
-        self._timer = pyuv.Timer(core.get_loop())
-        self._timer.start(self._tick, interval, interval)
+        self._timer = timer.Timer(self._tick, interval, interval)
+        self._timer.start()
 
-    def _tick(self, handle):
-        self.send(time())
+    def _tick(self, now, h):
+        self.send(from_nanotime(now))
 
     def stop(self):
         self._timer.stop()
 
-def sleep(delay=0, ref=True):
-    """ sleep the current tasklet for a while, if ref is False, it won't
-    block the loop if it quit"""
-    c = core.channel()
-    def wakeup(handle):
-        handle.stop()
-        c.send(None)
+def idle():
+    """ By using this function the current tasklet will be scheduled asap"""
 
-    w = pyuv.Timer(core.get_loop())
-    w.start(wakeup, delay, delay)
+    sched = core.get_scheduler()
+    curr = core.getcurrent()
+    def ready(now, h):
+        curr.blocked = False
+        sched.append(curr)
+        core.schedule()
 
-    if not ref:
-        w.unref()
+    t = timer.Timer(ready, 0.0001)
+    t.start()
 
-    c.receive()
+    curr.blocked = True
+    core.schedule_remove()
 
-def idle(ref=True):
-    """ By using this function the current tasklet will be executed next
-    time the event loop is idle"""
-    c = core.channel()
-    def wakeup(handle):
-        handle.stop()
-        c.send(None)
-
-    w = pyuv.Idle(core.get_loop())
-    w.start(wakeup)
-    if not ref:
-        w.unref()
-    c.receive()
+def sleep(seconds=0):
+    """ sleep the current tasklet for a while"""
+    if not seconds:
+        idle()
+    else:
+        timer.sleep(seconds)
 
 def defer(seconds, fun, *args, **kwargs):
 
@@ -100,14 +94,10 @@ class Timeout(BaseException):
             return
 
         self._current_task = core.getcurrent()
-        self._timer = pyuv.Timer(core.get_loop())
-        self._timer.start(self._throw, self.seconds, 0)
-        core.wakeup_loop()
+        self._timer = timer.Timer(self._throw, self.seconds)
+        self._timer.start()
 
-    def _throw(self, handle):
-        # stop the timer
-        handle.stop()
-
+    def _throw(self, now, h):
         if not self.timeout_ex:
             exp = self
         else:

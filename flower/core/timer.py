@@ -3,13 +3,14 @@
 # This file is part of flower. See the NOTICE for more information.
 
 import heapq
+import operator
 import threading
 
 import six
 
 from .util import nanotime
 from .tasks import (tasklet, schedule, schedule_remove, get_scheduler,
-        getcurrent)
+        getcurrent, taskwakeup)
 
 
 class Timers(object):
@@ -19,21 +20,26 @@ class Timers(object):
     __shared_state__ = dict(
             _timers = {},
             _heap = [],
-            _next = 0
+            _next = 0,
+            _timerproc = None
     )
-
 
     def __init__(self):
         self.__dict__ = self.__shared_state__
         self._lock = threading.RLock()
-        self.sleeping = None
-        self.idle = True
+        self.sleeping = False
 
 
     def add(self, t):
         with self._lock:
             self._add_timer(t)
-            tasklet(self.timerproc)()
+
+            if self.sleeping:
+                self.sleeping = False
+                taskwakeup(self._timerproc)
+
+            if self._timerproc is None or not self._timerproc.alive:
+                self._timerproc = tasklet(self.timerproc)()
 
     def _add_timer(self, t):
         if not t.interval:
@@ -49,7 +55,7 @@ class Timers(object):
             try:
                 ht = self._timers.pop(t)
                 del self._heap[operator.indexOf(self._heap, ht)]
-            except (IndexError, ValueError):
+            except (KeyError, IndexError):
                 pass
 
     def timerproc(self):
@@ -69,15 +75,27 @@ class Timers(object):
                     del self._timers[t]
 
                     # repeat ? reinsert the timer
-                    if t.period and t.period is not None:
-                        t.when += t.period * (1 - delta/t.periodà)
-                        self._add_timer(t)
+                    if t.period is not None and t.period > 0:
+                        np = nanotime(t.period)
+                        t.when += np * (1 - delta/np)
+                        ht =  [t.when, t]
+                        heapq.heappush(self._heap, ht)
+                        self._timers[t] = ht
+
 
                     # run
-                    t.callback(now, *t.args, **t.kwargs)
+                    t.callback(now, t, *t.args, **t.kwargs)
+                    t.active = False
 
-                    # nothing to do quit the task
-                    break
+                    if len(self._heap):
+                        self.sleeping = True
+                        schedule()
+                    else:
+                        self.sleeping = False
+                        self._timerproc = None
+                        break
+
+
 
 
 timers = Timers()
@@ -98,14 +116,17 @@ class Timer(object):
         self.args = args or []
         self.kwargs = kwargs or {}
         self.when = 0
+        self.active = False
 
     def start(self):
         global timers
+        self.active = True
         self.when = nanotime() + nanotime(self.interval)
         add_timer(self)
 
     def stop(self):
         remove_timer(self)
+        self.active = False
 
 
 def sleep(seconds=0):
@@ -114,7 +135,7 @@ def sleep(seconds=0):
 
     sched = get_scheduler()
     curr = getcurrent()
-    def ready(now):
+    def ready(now, t):
         curr.blocked = False
         sched.append(curr)
         schedule()

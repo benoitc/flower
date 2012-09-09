@@ -6,6 +6,7 @@
 from collections import deque
 import operator
 import sys
+import threading
 
 if sys.version_info[0] <= 2:
     import thread
@@ -13,6 +14,7 @@ else:
     import _thread as thread # python 3 fallback
 
 _tls = thread._local()
+
 
 import greenlet
 import pyuv
@@ -303,7 +305,7 @@ class _Scheduler(object):
         self._run_calls = []
         self._squeue = deque()
         self.append(self._main_tasklet)
-
+        self._lock = threading.RLock()
 
     def send(self):
         self._async.send()
@@ -327,6 +329,19 @@ class _Scheduler(object):
             del self._squeue[operator.indexOf(self._squeue, value)]
         except ValueError:
             pass
+
+
+    def taskwakeup(self, task):
+        if task is None:
+            return
+
+        with self._lock:
+            try:
+                del self._squeue[operator.indexOf(self._squeue, task)]
+            except ValueError:
+                pass
+
+            self.append(task)
 
     def switch(self, current, next):
         prev = self._last_task
@@ -403,6 +418,11 @@ def get_scheduler():
     except AttributeError:
         scheduler = _tls.scheduler = _Scheduler()
         return scheduler
+
+
+def taskwakeup(task):
+    sched = get_scheduler()
+    sched.taskwakeup(task)
 
 def get_loop():
     try:

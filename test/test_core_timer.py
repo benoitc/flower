@@ -14,7 +14,7 @@ def _wait():
 
 def test_simple_timer():
     r_list = []
-    def _func(now):
+    def _func(now, t):
         r_list.append(from_nanotime(now))
 
     now = time.time()
@@ -27,11 +27,11 @@ def test_simple_timer():
 
 def test_multiple_timer():
     r1 = []
-    def f(now):
+    def f(now, t):
         r1.append(from_nanotime(now))
 
     r2 = []
-    def f1(now):
+    def f1(now, t):
         r2.append(from_nanotime(now))
 
     now = time.time()
@@ -47,6 +47,21 @@ def test_multiple_timer():
     assert (now + 0.39) <= r1[0] <= (now + 0.41), r1[0]
     assert (now + 0.09) <= r2[0] <= (now + 0.11), r2[0]
 
+
+def test_repeat():
+    r = []
+    def f(now, t):
+        if len(r) == 3:
+            t.stop()
+            return
+        r.append(now)
+
+    t = Timer(f, 0.01, 0.01)
+    t.start()
+    run()
+    assert len(r) == 3
+    assert r[2] > r[1]
+    assert r[1] > r[0]
 
 def test_sleep():
     start = time.time()
@@ -74,6 +89,3 @@ def test_multiple_sleep():
     assert r1[0] > r2[0]
     assert (now + 0.39) <= r1[0] <= (now + 0.41), r1[0]
     assert (now + 0.09) <= r2[0] <= (now + 0.11), r2[0]
-
-
-
