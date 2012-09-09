@@ -102,6 +102,9 @@ def _scheduler_remove(value):
 def _scheduler_append(value, normal=True):
     get_scheduler().append(value)
 
+def _scheduler_appendleft(value, normal=True):
+    get_scheduler()._squeue.appendleft(value)
+
 def _scheduler_contains(value):
     scheduler = get_scheduler()
     return value in scheduler
@@ -118,6 +121,7 @@ class tasklet(coroutine):
     module.
     """
     tempval = None
+
     def __new__(cls, func=None, label=''):
         res = coroutine.__new__(cls)
         res.label = label
@@ -197,11 +201,11 @@ class tasklet(coroutine):
         self.alive = False
 
     def raise_exception(self, exc, *args):
-        if self.is_alive:
-            coroutine.throw(self, exc, *args)
-
+        if not self.is_alive:
+            return
         _scheduler_remove(self)
-        self.alive = False
+
+        coroutine.throw(self, exc, *args)
 
 
     def insert(self):
@@ -324,12 +328,14 @@ class _Scheduler(object):
             self._squeue.appendleft(value)
             self._squeue.rotate(1)
 
+    def appendleft(self, task):
+        self._squeue.appendleft(task)
+
     def remove(self, value):
         try:
             del self._squeue[operator.indexOf(self._squeue, value)]
         except ValueError:
             pass
-
 
     def taskwakeup(self, task):
         if task is None:
@@ -348,6 +354,8 @@ class _Scheduler(object):
         if (self._callback is not None and prev is not next):
             self._callback(prev, next)
         self._last_task = next
+
+
         assert not next.blocked
 
         if next is not current:

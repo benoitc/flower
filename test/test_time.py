@@ -9,7 +9,7 @@ import pytest
 from py.test import skip
 
 from flower import core
-from flower.time import Ticker, Timeout, with_timeout, sleep, timeout_
+from flower.time import Ticker, sleep
 
 IS_TRAVIS = False
 
@@ -80,77 +80,4 @@ class Test_Time:
         assert rlist == ['b', 'a']
 
 
-    def test_simple_timeout(self):
-        with pytest.raises(Timeout):
-            timeout = Timeout(0.01)
-            timeout.start()
 
-            try:
-                core.run()
-                raise AssertionError('Must raise Timeout')
-
-            finally:
-                timeout.cancel()
-
-    def test_timeout_in_task(self):
-
-        raised = []
-        def f():
-            timeout = Timeout(0.00001)
-            timeout.start()
-            try:
-                core.schedule()
-                raise AssertionError('Must raise Timeout')
-            except Timeout:
-                raised.append(True)
-            finally:
-                timeout.cancel()
-
-        core.tasklet(f)()
-        core.run()
-
-        assert raised == [True]
-
-
-    def test_timeout_in_task2(self):
-        rlist = []
-        def f():
-            timeout = Timeout(0.01)
-            timeout.start()
-            try:
-                sleep(0.1)
-                raise AssertionError('Must raise Timeout')
-            except Timeout:
-                rlist.append(True)
-            finally:
-                timeout.cancel()
-            core.schedule()
-
-            rlist.append("test")
-
-        core.tasklet(f)()
-        core.run()
-
-        assert rlist == [True, "test"]
-
-
-    def test_timeout_with(self):
-        with pytest.raises(Timeout):
-            with Timeout(0.01):
-                sleep(0.1)
-                raise AssertionError('Must raise Timeout')
-
-    def test_with_timeout(self):
-        with pytest.raises(Timeout):
-            with_timeout(0.01, sleep, 0.2)
-
-            core.run()
-
-    def test_timeout_decorator(self):
-
-        @timeout_(0.02)
-        def f():
-            sleep(0.2)
-
-        with pytest.raises(Timeout):
-            f()

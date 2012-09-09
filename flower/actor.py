@@ -20,7 +20,7 @@ import six
 
 from flower import core
 from flower.registry import registry
-from flower.time import Timeout, sleep, defer
+from flower.time import sleep, defer
 
 
 def self():
@@ -29,7 +29,7 @@ def self():
 
 class ActorRef(object):
 
-    __slots__ = ['ref', '_actor_ref', 'is_alive', '__dict__']
+    __slots__ = ['ref', '_actor_ref', 'is_alive', '__dict__', 'actor']
 
     __shared_state__ = dict(
             _ref_count = 0

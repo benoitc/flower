@@ -10,7 +10,7 @@ import six
 
 from .util import nanotime
 from .tasks import (tasklet, schedule, schedule_remove, get_scheduler,
-        getcurrent, taskwakeup)
+        getcurrent, taskwakeup, getmain)
 
 
 class Timers(object):
@@ -60,9 +60,12 @@ class Timers(object):
 
     def timerproc(self):
         while True:
-            with self._lock:
+            self._lock.acquire()
+
+            while True:
                 if not len(self._heap):
-                    return
+                    delta = -1
+                    break
 
                 last = heapq.heappop(self._heap)
                 t = last[1]
@@ -70,7 +73,7 @@ class Timers(object):
                 delta = t.when - now
                 if delta > 0:
                     heapq.heappush(self._heap, last)
-                    schedule()
+                    break
                 else:
                     del self._timers[t]
 
@@ -82,21 +85,19 @@ class Timers(object):
                         heapq.heappush(self._heap, ht)
                         self._timers[t] = ht
 
-
                     # run
+                    self._lock.release()
                     t.callback(now, t, *t.args, **t.kwargs)
-                    t.active = False
-
-                    if len(self._heap):
-                        self.sleeping = True
-                        schedule()
-                    else:
-                        self.sleeping = False
-                        self._timerproc = None
-                        break
+                    self._lock.acquire()
 
 
-
+            if delta < 0:
+                self.sleeping = True
+                self._lock.release()
+                schedule_remove()
+            else:
+                self._lock.release()
+                schedule()
 
 timers = Timers()
 add_timer = timers.add
@@ -135,6 +136,7 @@ def sleep(seconds=0):
 
     sched = get_scheduler()
     curr = getcurrent()
+
     def ready(now, t):
         curr.blocked = False
         sched.append(curr)
@@ -143,5 +145,7 @@ def sleep(seconds=0):
     t = Timer(ready, seconds)
     t.start()
 
-    curr.blocked = True
+    if curr is not getmain():
+        curr.blocked = True
+
     schedule_remove()

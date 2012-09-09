@@ -5,7 +5,7 @@
 from flower.actor import (receive, send, spawn, spawn_after, ActorRef,
         send_after, wrap, Actor)
 from flower import core
-
+from flower.time import sleep
 import time
 
 class Test_Actor:
@@ -20,6 +20,7 @@ class Test_Actor:
         assert pid.ref == 0
         assert hasattr(pid.actor, 'mailbox')
 
+        sleep(0.1)
         core.run()
 
         assert r_list == [True]
