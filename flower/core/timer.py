@@ -44,17 +44,13 @@ class Timers(object):
     def _add_timer(self, t):
         if not t.interval:
             return
+        heapq.heappush(self._heap, t)
 
-        t.when = nanotime() + nanotime(t.interval)
-        ht =  [t.when, t]
-        heapq.heappush(self._heap, ht)
-        self._timers[t] = ht
 
     def remove(self, t):
         with self._lock:
             try:
-                ht = self._timers.pop(t)
-                del self._heap[operator.indexOf(self._heap, ht)]
+                del self._heap[operator.indexOf(self._heap, t)]
             except (KeyError, IndexError):
                 pass
 
@@ -67,23 +63,18 @@ class Timers(object):
                     delta = -1
                     break
 
-                last = heapq.heappop(self._heap)
-                t = last[1]
+                t = heapq.heappop(self._heap)
                 now = nanotime()
                 delta = t.when - now
                 if delta > 0:
-                    heapq.heappush(self._heap, last)
+                    heapq.heappush(self._heap, t)
                     break
                 else:
-                    del self._timers[t]
-
                     # repeat ? reinsert the timer
                     if t.period is not None and t.period > 0:
                         np = nanotime(t.period)
                         t.when += np * (1 - delta/np)
-                        ht =  [t.when, t]
-                        heapq.heappush(self._heap, ht)
-                        self._timers[t] = ht
+                        heapq.heappush(self._heap, t)
 
                     # run
                     self._lock.release()
@@ -131,6 +122,8 @@ class Timer(object):
 
     def __lt__(self, other):
         return self.when < other.when
+
+    __cmp__ = __lt__
 
 def sleep(seconds=0):
     if not seconds:
