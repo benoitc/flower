@@ -20,7 +20,7 @@ import six
 
 from flower import core
 from flower.registry import registry
-from flower.time import sleep, defer
+from flower.time import sleep, after_func
 
 
 def self():
@@ -71,7 +71,7 @@ class Message(object):
         target.send((self.source.ref, self.msg))
 
     def send_after(self, seconds):
-        defer(seconds, self.send)
+        after_func(seconds, self.send)
 
 
 
@@ -164,7 +164,7 @@ class Actor(core.tasklet):
             instance.bind(_func)
             instance.setup()
 
-        defer(seconds, _deferred_spawn)
+        after_func(seconds, _deferred_spawn)
         return instance.ref
 
     def unlink(self, ref):

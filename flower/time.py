@@ -48,15 +48,15 @@ def sleep(seconds=0):
     else:
         timer.sleep(seconds)
 
-def defer(seconds, fun, *args, **kwargs):
+def after_func(d, f, *args, **kwargs):
+    """ AfterFunc waits for the duration to elapse and then calls f in
+    its own coroutine. It returns a Timer that can be used to cancel the
+    call using its stop method. """
 
-    def _defer():
-        loop = core.get_loop()
-        c = Ticker(seconds)
-        try:
-            c.receive()
-        finally:
-            c.stop()
-        fun(*args, **kwargs)
+    def _func(now, handle):
+        core.tasklet(f)(*args, **kwargs)
+        core.schedule()
 
-    core.tasklet(_defer)()
+    t = timer.Timer(_func, d)
+    t.start()
+    return t
