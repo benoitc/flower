@@ -129,6 +129,8 @@ class Timer(object):
         remove_timer(self)
         self.active = False
 
+    def __lt__(self, other):
+        return self.when < other.when
 
 def sleep(seconds=0):
     if not seconds:
