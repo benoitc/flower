@@ -20,7 +20,6 @@ class Timers(object):
     __shared_state__ = dict(
             _timers = {},
             _heap = [],
-            _next = 0,
             _timerproc = None
     )
 
