@@ -12,7 +12,7 @@ else:
 
 import six
 
-from flower.core.tasks import (schedule, getcurrent, get_scheduler,
+from flower.core.sched import (schedule, getcurrent, get_scheduler,
         _scheduler_remove)
 
 class bomb(object):

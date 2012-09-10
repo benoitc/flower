@@ -9,7 +9,7 @@ import threading
 import six
 
 from .util import nanotime
-from .tasks import (tasklet, schedule, schedule_remove, get_scheduler,
+from .sched import (tasklet, schedule, schedule_remove, get_scheduler,
         getcurrent, taskwakeup, getmain)
 
 

@@ -2,7 +2,6 @@
 #
 # This file is part of flower. See the NOTICE for more information.
 
-import copy
 from collections import deque
 import inspect
 import operator
@@ -15,7 +14,6 @@ if sys.version_info[0] <= 2:
 else:
     import _thread as thread # python 3 fallback
 
-import pyuv
 import six
 
 from flower import core
@@ -168,7 +166,7 @@ class Actor(core.tasklet):
         return instance.ref
 
     def unlink(self, ref):
-        idx = operator.indexOf(self.links, curr.ref)
+        idx = operator.indexOf(self.links, ref)
         if idx < 0:
             return
         with self._lock:

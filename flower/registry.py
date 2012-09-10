@@ -4,7 +4,6 @@
 
 import operator
 import threading
-import weakref
 
 import six
 
