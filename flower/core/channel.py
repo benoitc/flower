@@ -180,12 +180,11 @@ class channel(object):
             source.blocked = 1
             self.queue.append(source)
             _scheduler_remove(getcurrent())
+
             do_schedule = True
 
         if do_schedule:
-            if sched.thread_id != thread.get_ident():
-                sched.send()
-            else:
+            if sched.thread_id == thread.get_ident():
                 schedule()
 
         retval = source.tempval

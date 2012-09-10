@@ -15,7 +15,7 @@ _tls = thread._local()
 import pyuv
 
 from flower.core.channel import channel
-from flower.core.sched import tasklet, getcurrent
+from flower.core.sched import tasklet, getcurrent, schedule
 
 def get_fd(io):
     if not isinstance(io, int):
@@ -68,8 +68,10 @@ class UV(object):
 
     def run(self):
         self.running = True
-        self.loop.run()
-        self.running = False
+        try:
+            self.loop.run()
+        finally:
+            self.running = False
 
 def uv_server():
     global _tls

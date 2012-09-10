@@ -238,7 +238,6 @@ class _Scheduler(object):
         self._run_calls = []
         self._squeue = deque()
         self.append(self._main_tasklet)
-        self._lock = threading.RLock()
 
     def send(self):
         self._async.send()
@@ -270,13 +269,12 @@ class _Scheduler(object):
         if task is None:
             return
 
-        with self._lock:
-            try:
-                del self._squeue[operator.indexOf(self._squeue, task)]
-            except ValueError:
-                pass
+        try:
+            del self._squeue[operator.indexOf(self._squeue, task)]
+        except ValueError:
+            pass
 
-            self.append(task)
+        self.append(task)
 
     def switch(self, current, next):
         prev = self._last_task
