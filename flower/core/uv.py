@@ -2,6 +2,7 @@
 #
 # This file is part of flower. See the NOTICE for more information.
 
+import os
 import sys
 import threading
 
@@ -15,8 +16,7 @@ _tls = thread._local()
 import pyuv
 
 from flower.core.channel import channel
-from flower.core.sched import (schedule, tasklet, get_scheduler,
-        schedule_remove, getcurrent)
+from flower.core.sched import tasklet, getcurrent
 
 def get_fd(io):
     if not isinstance(io, int):
@@ -40,6 +40,8 @@ def uv_mode(m):
     else:
         return pyuv.UV_READABLE | pyuv.UV_WRITABLE
 
+class FDClosing(Exception):
+    pass
 
 class LoopExit(Exception):
     pass
@@ -71,7 +73,7 @@ class FD(object):
 
     def incrref(self, closing=False):
         with self._lock:
-            if self.closing == true or self.io is None:
+            if self.closing == True or self.io is None:
                 raise FDClosing("fd closing: %s" % self.fno)
 
             self._refcount += 1
@@ -232,7 +234,7 @@ def uv_idle(ref=True):
     idle = pyuv.Idle(uv.loop)
     idle.start(_sleep_cb)
     if not ref:
-        sleep.unref()
+        idle.unref()
 
     return c.receive()
 

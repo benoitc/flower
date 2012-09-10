@@ -17,8 +17,6 @@ _tls = thread._local()
 
 
 import greenlet
-import pyuv
-
 import six
 
 class TaskletExit(Exception):
@@ -223,69 +221,6 @@ class tasklet(coroutine):
             # not sure if I will revive this  " Use t=tasklet().capture()"
         _scheduler_remove(self)
 
-
-class LoopExit(Exception):
-    pass
-
-
-def _set_loop_status(status):
-    _tls.is_loop_running = status
-
-def _set_loop_task(task):
-    _tls.loop_task = task
-
-def _unset_loop_task():
-    _tls.loop_task = None
-
-class _LoopTask(tasklet):
-
-    def __init__(self):
-        tasklet.__init__(self, label='loop')
-        self.loop = get_scheduler().loop
-        self.func = self._run_loop
-        # bind the coroutine
-        self.setup()
-
-    def setup(self, *argl, **argd):
-        """
-        supply the parameters for the callable
-        """
-        if self.func is None:
-            raise TypeError('tasklet function must be callable')
-
-        func = self.func
-        def _func():
-            try:
-                try:
-                    func(*argl, **argd)
-                except TaskletExit:
-                    pass
-            finally:
-                _scheduler_remove(self)
-                self.alive = False
-
-        self.func = None
-        coroutine.bind(self, _func)
-        self.alive = True
-        _scheduler_append(self, False)
-        return self
-
-    def schedule(self, handle):
-        _set_loop_status(True)
-        schedule()
-
-    def _run_loop(self):
-        self._timer = pyuv.Timer(self.loop)
-        self._timer.start(self.schedule, 0.0001, 0.0001)
-        self._timer.unref()
-
-        # run the loop
-        _set_loop_status(True)
-        try:
-            self.loop.run()
-        finally:
-            _set_loop_status(False)
-
 class _Scheduler(object):
 
     def __init__(self):
@@ -297,12 +232,6 @@ class _Scheduler(object):
         six.get_method_function(self._main_tasklet._init)(self._main_tasklet,
                 label='main')
         self._last_task = self._main_tasklet
-        self.loop = pyuv.Loop()
-
-        # used to make sure we can send messages in the same thread and
-        # switch greenlets
-        self._async = pyuv.Async(self.loop, self.wakeup)
-        self._async.unref()
 
         self.thread_id = thread.get_ident()
         self._callback = None
@@ -431,33 +360,6 @@ def get_scheduler():
 def taskwakeup(task):
     sched = get_scheduler()
     sched.taskwakeup(task)
-
-def get_loop():
-    try:
-        is_running = _tls.is_loop_running
-    except AttributeError:
-        is_running = False
-
-    if not is_running:
-        loop_task = _LoopTask()
-        _tls.loop_task = loop_task
-    return get_scheduler().loop
-
-
-def wakeup_loop():
-    try:
-        loop_task = _tls.loop_task
-    except AttributeError:
-        get_loop()
-        loop_task = _tls.loop_task
-    loop_task.switch()
-
-def get_looptask():
-    try:
-        return _tls.loop_task
-    except AttributeError:
-        get_loop()
-        return _tls.loop_task
 
 def getruncount():
     sched = get_scheduler()

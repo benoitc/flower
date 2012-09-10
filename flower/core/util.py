@@ -4,18 +4,6 @@
 
 import time
 
-import pyuv
-
-def insert_callback(loop, fun, *args, **kwargs):
-
-    def _cb(handle):
-        handle.stop()
-        fun(*args, **kwargs)
-
-    idle = pyuv.Idle(loop)
-    idle.start(_cb)
-
-
 def nanotime(s=None):
     """ convert seconds to nanoseconds. If s is None, current time is
     returned """
