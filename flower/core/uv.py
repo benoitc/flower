@@ -43,9 +43,6 @@ def uv_mode(m):
 class FDClosing(Exception):
     pass
 
-class LoopExit(Exception):
-    pass
-
 class FD(object):
 
     """ file descriptor listener used by servers
