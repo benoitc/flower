@@ -36,10 +36,10 @@ class Conn(object):
         return self.cr.receive()
 
     def write(self, data):
-        self.client.write(data)
+        return self.client.write(data)
 
-    def writelines(self, data):
-        self.client.write(data)
+    def writelines(self, seq):
+        return self.client.writelines(seq)
 
     def local_address(self):
         return self.client.getsockame()
