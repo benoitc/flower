@@ -132,7 +132,6 @@ def sleep(seconds=0):
     curr = getcurrent()
 
     def ready(now, t):
-        print("i am ready fuck you!")
         curr.blocked = False
         sched.append(curr)
         schedule()
