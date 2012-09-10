@@ -3,29 +3,27 @@
 # This file is part of flower. See the NOTICE for more information.
 
 import pyuv
-from flower import core
-
-UV_ALL = pyuv.UV_READABLE | pyuv.UV_WRITABLE
-UV_READABLE = pyuv.UV_READABLE
-UV_WRITABLE = pyuv.UV_WRITABLE
+from flower.core import channel
+from flower.core.uv import get_fd, uv_mode, uv_server
 
 
-class IOChannel(core.channel):
+class IOChannel(channel):
+    """ channel to wait on IO events for a specific fd. It now use the UV server
+    facility.
 
-    def __init__(self, io, events=UV_ALL, label=''):
+        mode:
+        0: read
+        1: write
+        2: read & write"""
+
+    def __init__(self, io, mode=0, label=''):
         super(IOChannel, self).__init__(label=label)
-        if not isinstance(io, int):
-            if hasattr(io, 'fileno'):
-                if callable(io.fileno):
-                    io = io.fileno()
-                else:
-                    io = io.fileno
-            else:
-                raise ValueError("invalid file descriptor number")
 
+        fno = get_fd(io)
         self.io = io
-        self._poller = pyuv.Poll(core.get_loop(), io)
-        self._poller.start(events, self._tick)
+        uv = uv_server()
+        self._poller = pyuv.Poll(uv.loop, fno)
+        self._poller.start(uv_mode(mode), self._tick)
 
     def _tick(self, handle, events, errno):
         if errno:

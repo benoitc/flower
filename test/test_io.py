@@ -7,7 +7,7 @@ import tempfile
 
 from py.test import skip
 from flower import core
-from flower.io import IOChannel, UV_READABLE
+from flower.io import IOChannel
 
 class Test_IO:
 
@@ -16,7 +16,7 @@ class Test_IO:
 
         ret = []
         def _read(fd):
-            c = IOChannel(r, events=UV_READABLE)
+            c = IOChannel(r, mode=0)
             c.receive()
             ret.append(os.read(fd, 10))
             c.stop()
