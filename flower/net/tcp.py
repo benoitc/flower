@@ -10,18 +10,9 @@ import pyuv
 from flower.core.uv import uv_server
 from flower.core import (channel, schedule, schedule_remove, getcurrent,
         get_scheduler, tasklet)
+from flower.net.base import Conn, Listener, Listen, NoMoreListener
 
-UV_HANDLERS = dict(
-        tcp = pyuv.TCP,
-        udp = pyuv.UDP,
-        unix = pyuv.Pipe)
-
-
-class NoMoreListener(Exception):
-    pass
-
-
-class Conn(object):
+class TCPConn(Conn):
 
     def __init__(self, client):
         self.client = client
@@ -57,54 +48,10 @@ class Conn(object):
             self.cr.send(data)
         schedule()
 
-class Listener(object):
+class TCPListen(Listen):
+    """ A TCP listener """
 
-    def __init__(self):
-        self.task = getcurrent()
-        self.uv = uv_server()
-        self.sched = get_scheduler()
-        self.c = channel()
-
-
-    @property
-    def loop(self):
-        return self.uv.loop
-
-class Listen(object):
-    """A Listener is a generic network listener for stream-oriented protocols.
-    Multiple tasks  may invoke methods on a Listener simultaneously.
-
-    Example::
-
-            def handle_connection(conn):
-                while True:
-                    data = conn.read()
-                    if not data:
-                        break
-                    conn.write(data)
-
-            l = Listen(('127.0.0.1', 8000))
-
-            try:
-                while True:
-                    try:
-                        conn, err = l.accept()
-                        t = tasklet(handle_connection)(conn)
-                    except KeyboardInterrupt:
-                        break
-            finally:
-                l.close()
-
-            run()
-    """
-
-
-    def __init__(self, addr=('0.0.0.0', 0), proto="tcp"):
-        try:
-            self.handler_class = UV_HANDLERS[proto]
-        except KeyError:
-            raise ValueError("type should be tcp, udp or unix")
-
+    def __init__(self, addr=('0.0.0.0', 0)):
         # listeners are all couroutines waiting for a connections
         self.listeners = deque()
         self.uv = uv_server()
@@ -112,7 +59,7 @@ class Listen(object):
         self.task = getcurrent()
         self.listening = False
 
-        self.handler = self.handler_class(self.uv.loop)
+        self.handler = pyuv.TCP(self.uv.loop)
         self.handler.bind(addr)
 
     def accept(self):
@@ -131,15 +78,14 @@ class Listen(object):
             listener = self.listeners.popleft()
 
             # accept the connection
-            client = self.handler_class(server.loop)
+            client = pyuv.TCP(server.loop)
             server.accept(client)
 
             self.uv.wakeup()
             # return a new connection object to the listener
-            conn = Conn(client)
+            conn = TCPConn(client)
             listener.c.send((conn, error))
             schedule()
         else:
             # we should probably do something there to drop connections
             self.task.throw(NoMoreListener)
-

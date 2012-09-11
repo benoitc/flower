@@ -1,7 +1,6 @@
 # Echo server program
-from flower import tasklet, run, schedule, get_scheduler, getcurrent
-from flower.net.listen import Listen
-from flower.time import sleep
+from flower import tasklet, run
+from flower.net import Listen
 
 
 # handle the connection. It return data to the sender.
