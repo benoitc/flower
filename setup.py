@@ -35,13 +35,15 @@ DATA_FILES = [
         ]
 
 
-setup(name='flower',
+setup(name='pyflower',
       version='0.1.0',
       description = 'collection of modules to build distributed and reliable concurrent systems',
       long_description = long_description,
       classifiers = CLASSIFIERS,
       license = 'BSD',
       url = 'http://github.com/benoitc/flower',
+      author = 'Benoit Chesneau',
+      author_email = 'benoitc@e-engura.org',
       packages=find_packages(),
       install_requires = ['pyuv', 'greenlet', 'six'],
       data_files = DATA_FILES)
