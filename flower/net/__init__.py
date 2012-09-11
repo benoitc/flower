@@ -2,17 +2,41 @@
 #
 # This file is part of flower. See the NOTICE for more information.
 
-from flower.net.base import Listen
-from flower.net.tcp import TCPListen
-from flower.net.udp import UDPListen
-from flower.net.pipe import PIPEListen
+from flower.net.base import IListen
+from flower.net.tcp import TCPListen, dial_tcp
+from flower.net.udp import UDPListen, dial_udp
+from flower.net.pipe import PipeListen, dial_pipe
 
-UV_HANDLERS = dict(
+LISTEN_HANDLERS = dict(
         tcp = TCPListen,
         udp = UDPListen,
-        pipe = PIPEListen)
+        pipe = PipeListen)
 
-class Listen(Listen):
+DIAL_HANDLERS = dict(
+        tcp = dial_tcp,
+        udp = dial_udp,
+        pipe = dial_pipe)
+
+
+def Dial(proto, *args):
+    """ A Dial is a generic client for stream-oriented protocols.
+
+    Example::
+
+        conn, err = Dial("tcp", ('127.0.0.1', 8000))
+        conn.write("hello")
+        print(conn.read())
+    """
+
+    try:
+        dial_func = DIAL_HANDLERS[proto]
+    except KeyError:
+        raise ValueError("type should be tcp, udp or unix")
+    return dial_func(*args)
+
+dial = Dial # for pep8 lovers
+
+def Listen(addr=('0.0.0.0', 0), proto="tcp", *args):
     """A Listener is a generic network listener for stream-oriented protocols.
     Multiple tasks  may invoke methods on a Listener simultaneously.
 
@@ -40,17 +64,11 @@ class Listen(Listen):
             run()
     """
 
+    try:
+        listen_class = LISTEN_HANDLERS[proto]
+    except KeyError:
+        raise ValueError("type should be tcp, udp or unix")
 
-    def __init__(self, addr=('0.0.0.0', 0), proto="tcp", *args):
-        try:
-            self.listen_class = UV_HANDLERS[proto]
-        except KeyError:
-            raise ValueError("type should be tcp, udp or unix")
+    return listen_class(addr, *args)
 
-        self.listen_handle = self.listen_class(addr, *args)
-
-    def accept(self):
-        return self.listen_handle.accept()
-
-    def close(self):
-        return self.listen_handle.close()
+listen = Listen # for pep8 lovers

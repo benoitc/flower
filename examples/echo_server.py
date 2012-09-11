@@ -9,12 +9,12 @@ def handle_connection(conn):
         data = conn.read()
         if not data:
             break
+
         conn.write(data)
 
 
 # Listen on tcp port 8000 on localhost
 l = Listen(('127.0.0.1', 8000), "tcp")
-
 try:
     while True:
         try:

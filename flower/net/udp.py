@@ -6,20 +6,20 @@ from threading import Lock
 
 from flower.core import channel, schedule, getcurrent
 from flower.core.uv import uv_server
-from flower.net.base import Listener, Conn, Listen, NoMoreListener
+from flower.net.base import Listener, IConn, IListen, IDial, NoMoreListener
 
-class UDPConn(Conn):
+class UDPConn(IConn):
 
-    def __init__(self, addr, bind_addr, client=None):
+    def __init__(self, addr, raddr, client=None):
         self.uv = uv_server()
         if client is None:
             self.client = pyuv.UDP(self.uv.loop)
-            self.client.bind(bind_addr)
+            self.client.bind(raddr)
         else:
             self.client = client
         self.reading = true
         self.cr = channel
-        self._bind_addr = bind_addr
+        self._raddr = raddr
         self.addr = addr
 
     def read(self):
@@ -37,7 +37,7 @@ class UDPConn(Conn):
     def remote_addr(self):
         return self.remote_addr
 
-class UDPListen(Listen):
+class UDPListen(IListen):
 
     def __init__(self, addr=('0.0.0.0', 0)):
         # listeners are all couroutines waiting for a connections
@@ -63,23 +63,43 @@ class UDPListen(Listen):
         with self._lock:
             if addr in self.conns:
                 conn = self.conns[addr]
-                if conn.cr.balance < 0:
-                    conn.cr.send(data, err)
+
+                if error:
+                    if error == 1:
+                        msg = ""
+                    else:
+                        msg = bomb(IOError, IOError("uv error: %s" % error))
                 else:
-                    tasklet(conn.cr.send)(data, err)
+                    msg = data
+
+                # emit last message
+                conn.queue.append(msg)
+                if conn.cr.balance < 0:
+                    # someone is waiting, return last message
+                    conn.cr.send(self.queue.popleft())
+
             elif len(self.listeners):
                 listener = self.listeners.popleft()
-                conn = UDPConn(addr)
-                self.conns[addr] = conn
-
-                # send the result async waiting someone eventually read
-                # the connection. Eventually the listener
-                tasklet(conn.cr.send)(data, err)
+                if error:
+                    listener.c.send_exception(IOError, "uv error: %s" % error)
+                else:
+                    conn = UDPConn(addr)
+                    conn.queue.append(data)
+                    self.conns[addr] = conn
+                    listener.c.send(conn, error)
             else:
                 # we should probably do something there to drop connections
                 self.task.throw(NoMoreListener)
+
 
             schedule()
 
     def addr(self):
         return self.handler.getsockname()
+
+def dial_udp(laddr, raddr):
+    uv = uv_server()
+    h = pyuv.UDP(uv.loop)
+    h.bind(laddr)
+
+    return (UDPConn(laddr, raddr, h), None)

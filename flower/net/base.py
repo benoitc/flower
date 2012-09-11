@@ -22,7 +22,7 @@ class Listener(object):
         return self.uv.loop
 
 
-class Conn(object):
+class IConn(object):
     """ connection interface """
 
     def read(self):
@@ -41,7 +41,22 @@ class Conn(object):
     def remote_addr(self):
         """ return the remote address """
 
-class Listen(object):
+    @property
+    def status(self):
+        """ return current status """
+        if self.client.closed:
+            return "closed"
+        elif self.client.readable and self.client.writable:
+            return "open"
+        elif self.client.readable and not self.client.writable:
+            return "readonly"
+        elif not self.client.readable and self.client.writable:
+            return "writeonly"
+        else:
+            return "closed"
+
+
+class IListen(object):
 
     def accept(self):
         """ accept a connection. Return a Conn instance. It always
@@ -52,3 +67,7 @@ class Listen(object):
 
     def addr(self):
         " return the bound address """
+
+class IDial(object):
+
+    """ base interface for Dial class """
