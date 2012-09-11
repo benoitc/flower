@@ -35,7 +35,7 @@ DATA_FILES = [
         ]
 
 
-setup(name='pyflower',
+setup(name='tulip',
       version='0.1.0',
       description = 'collection of modules to build distributed and reliable concurrent systems',
       long_description = long_description,

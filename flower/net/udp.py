@@ -2,6 +2,7 @@
 #
 # This file is part of flower. See the NOTICE for more information.
 
+from collections import deque
 from threading import Lock
 
 from flower.core import channel, schedule, getcurrent
@@ -18,12 +19,24 @@ class UDPConn(IConn):
         else:
             self.client = client
         self.reading = true
+        self.queue = deque()
         self.cr = channel
         self._raddr = raddr
         self.addr = addr
 
     def read(self):
-         return self.cr.receive()
+        try:
+            retval = self.queue.popleft()
+            if self.cr.balance < 0:
+                self.cr.send(retval)
+
+            if isinstance(retval, bomb):
+                retval.raise_()
+            return retval
+        except IndexError:
+            pass
+
+        return self.cr.receive()
 
     def write(self, data):
         self.client.send(self._remote_addr, data)

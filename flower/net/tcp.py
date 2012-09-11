@@ -30,6 +30,9 @@ class TCPConn(IConn):
         self.client.loop.update_time()
         try:
             retval = self.queue.popleft()
+            if self.cr.balance < 0:
+                self.cr.send(retval)
+
             if isinstance(retval, bomb):
                 retval.raise_()
             return retval

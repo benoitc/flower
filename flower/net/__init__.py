@@ -6,11 +6,14 @@ from flower.net.base import IListen
 from flower.net.tcp import TCPListen, dial_tcp
 from flower.net.udp import UDPListen, dial_udp
 from flower.net.pipe import PipeListen, dial_pipe
+from flower.net.sock import TCPSockListen, PipeSockListen
 
 LISTEN_HANDLERS = dict(
         tcp = TCPListen,
         udp = UDPListen,
-        pipe = PipeListen)
+        pipe = PipeListen,
+        socktcp = TCPSockListen,
+        sockpipe = PipeSockListen)
 
 DIAL_HANDLERS = dict(
         tcp = dial_tcp,
