@@ -5,12 +5,7 @@
 import sys
 import threading
 
-if sys.version_info[0] <= 2:
-    import thread
-else:
-    import _thread as thread # python 3 fallback
-
-_tls = thread._local()
+_tls = threading.local()
 
 import pyuv
 

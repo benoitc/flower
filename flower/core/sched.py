@@ -8,12 +8,9 @@ import operator
 import sys
 import threading
 
-if sys.version_info[0] <= 2:
-    import thread
-else:
-    import _thread as thread # python 3 fallback
+from .util import thread_ident
 
-_tls = thread._local()
+_tls = threading.local()
 
 
 import greenlet
@@ -137,7 +134,7 @@ class tasklet(coroutine):
         self.label = label
         self.alive = False
         self.blocked = False
-        self.thread_id = thread.get_ident()
+        self.thread_id = thread_ident()
         self._task_id = _global_task_id
         _global_task_id += 1
 
@@ -233,7 +230,7 @@ class _Scheduler(object):
                 label='main')
         self._last_task = self._main_tasklet
 
-        self.thread_id = thread.get_ident()
+        self.thread_id = thread_ident()
         self._callback = None
         self._run_calls = []
         self._squeue = deque()

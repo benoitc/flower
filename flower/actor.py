@@ -9,11 +9,6 @@ import sys
 import threading
 import weakref
 
-if sys.version_info[0] <= 2:
-    import thread
-else:
-    import _thread as thread # python 3 fallback
-
 import six
 
 from flower import core

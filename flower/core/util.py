@@ -4,6 +4,12 @@
 
 import time
 
+try:
+    from thread import get_ident as thread_ident
+except ImportError:
+    from _thread import get_ident as thread_ident
+
+
 def nanotime(s=None):
     """ convert seconds to nanoseconds. If s is None, current time is
     returned """

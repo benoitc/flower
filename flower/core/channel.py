@@ -4,16 +4,12 @@
 
 from collections import deque
 import sys
-
-if sys.version_info[0] <= 2:
-    import thread
-else:
-    import _thread as thread # python 3 fallback
-
 import six
 
-from flower.core.sched import (schedule, getcurrent, get_scheduler,
-        _scheduler_remove)
+from flower.core.sched import (
+    schedule, getcurrent, get_scheduler,
+    _scheduler_remove, thread_ident,
+)
 
 class bomb(object):
     def __init__(self, exp_type=None, exp_value=None, exp_traceback=None):
@@ -31,7 +27,7 @@ class ChannelWaiter(object):
     def __init__(self, task, scheduler):
         self.task = task
         self.scheduler = scheduler
-        self.thread_id = thread.get_ident()
+        self.thread_id = thread_ident()
 
     def __get_tempval(self):
         return self.task.tempval
@@ -184,7 +180,7 @@ class channel(object):
             do_schedule = True
 
         if do_schedule:
-            if sched.thread_id == thread.get_ident():
+            if sched.thread_id == thread_ident():
                 schedule()
 
         retval = source.tempval
