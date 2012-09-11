@@ -2,16 +2,13 @@
 #
 # This file is part of flower. See the NOTICE for more information.
 
-import os
 from collections import deque
-import threading
 import pyuv
 
 
 from flower.core.uv import uv_server
-from flower.core.util import nanotime
-from flower.core import (channel, schedule, schedule_remove, getcurrent,
-        get_scheduler, tasklet, bomb)
+from flower.core import (channel, schedule, getcurrent, get_scheduler,
+        bomb)
 from flower.net.base import IConn, Listener, IListen, NoMoreListener
 
 class TCPConn(IConn):
@@ -134,7 +131,7 @@ def dial_tcp(addr):
     c = channel()
     def _on_connect(handle, error):
         if error:
-            c.send_exception(OError, "uv error: %s" % error)
+            c.send_exception(IOError, "uv error: %s" % error)
         else:
             c.send(handle)
 

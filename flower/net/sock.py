@@ -4,6 +4,7 @@
 
 from collections import deque
 from io import DEFAULT_BUFFER_SIZE
+import os
 import threading
 
 import socket
@@ -11,10 +12,8 @@ import sys
 
 import pyuv
 
-from flower.core import (channel, schedule, schedule_remove, getcurrent,
-        get_scheduler, tasklet, bomb)
+from flower.core import (channel, schedule, getcurrent, bomb)
 from flower.core.uv import uv_server
-from flower.io import wait_read, wait_write
 from flower.net.base import IConn, Listener, IListen, NoMoreListener
 from flower.net.util import parse_address, is_ipv6
 
@@ -24,7 +23,6 @@ if IS_WINDOW:
     from errno import WSAEWOULDBLOCK as EWOULDBLOCK
     EAGAIN = EWOULDBLOCK
 else:
-    from errno import EINVAL
     from errno import EWOULDBLOCK
 
 try:
@@ -43,8 +41,6 @@ except AttributeError:
 
 if sys.version_info < (2, 7, 0, 'final'):
     # in python 2.6 socket.recv_into doesn't support bytesarray
-    import array
-
     def recv_into(sock, b):
         l = max(len(b), DEFAULT_BUFFER_SIZE)
         buf = sock.recv(l)
@@ -138,8 +134,8 @@ class SockConn(IConn):
         while data_sent < len(data):
             data_sent += self._send(_get_memory(data, data_sent))
 
-    def writelines(self, data):
-        for s in seq:
+    def writelines(self, seq):
+        for data in seq:
             self.write(data)
 
     def local_addr(self):
@@ -184,15 +180,15 @@ class SockConn(IConn):
     def _on_read(self, handle, events, error):
         if error and error is not None:
             self.readable = False
-            if errno == 1:
+            if error == 1:
                 self.closing = True
                 msg = ""
             else:
                 msg = bomb(IOError, IOError("uv error: %s" % error))
         else:
             self.readable = True
-
-        self.cr.send(None)
+            msg = None
+        self.cr.send(msg)
 
     def _send(self, data):
         while True:
@@ -366,12 +362,8 @@ class PipeSockListen(TCPSockListen):
             except OSError:
                 pass
 
-        sock = socket.socket(family, socket.SOCK_STREAM)
+        sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-
-        nodelay = kwargs.get('nodelay', True)
-        if family == socket.AF_INET and nodelay:
-            sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
 
         if fd is None:
             sock.bind(addr)

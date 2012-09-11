@@ -3,11 +3,12 @@
 # This file is part of flower. See the NOTICE for more information.
 
 from collections import deque
-from threading import Lock
 
-from flower.core import channel, schedule, getcurrent
+from flower.core import channel, schedule, getcurrent, bomb
 from flower.core.uv import uv_server
-from flower.net.base import Listener, IConn, IListen, IDial, NoMoreListener
+from flower.net.base import Listener, IConn, IListen, NoMoreListener
+
+import pyuv
 
 class UDPConn(IConn):
 
@@ -18,7 +19,7 @@ class UDPConn(IConn):
             self.client.bind(raddr)
         else:
             self.client = client
-        self.reading = true
+        self.reading = True
         self.queue = deque()
         self.cr = channel
         self._raddr = raddr
@@ -72,7 +73,7 @@ class UDPListen(IListen):
 
         return listener.c.receive()
 
-    def on_recv(self, handler, addr, data, err):
+    def on_recv(self, handler, addr, data, error):
         with self._lock:
             if addr in self.conns:
                 conn = self.conns[addr]

@@ -4,6 +4,8 @@
 
 import pyuv
 
+from flower.core import channel
+from flower.core.uv import uv_server
 from flower.net.tcp import TCPListen, TCPConn
 
 class PipeConn(TCPConn):
