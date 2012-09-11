@@ -5,11 +5,12 @@
 from flower.net.base import Listen
 from flower.net.tcp import TCPListen
 from flower.net.udp import UDPListen
-
+from flower.net.pipe import PIPEListen
 
 UV_HANDLERS = dict(
         tcp = TCPListen,
-        udp = UDPListen)
+        udp = UDPListen,
+        pipe = PIPEListen)
 
 class Listen(Listen):
     """A Listener is a generic network listener for stream-oriented protocols.

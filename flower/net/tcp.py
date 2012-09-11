@@ -51,6 +51,9 @@ class TCPConn(Conn):
 class TCPListen(Listen):
     """ A TCP listener """
 
+    CONN_CLASS = TCPConn # connection object returned
+    HANDLER_CLASS = pyuv.TCP # pyuv class used to handle the conenction
+
     def __init__(self, addr=('0.0.0.0', 0)):
         # listeners are all couroutines waiting for a connections
         self.listeners = deque()
@@ -59,7 +62,7 @@ class TCPListen(Listen):
         self.task = getcurrent()
         self.listening = False
 
-        self.handler = pyuv.TCP(self.uv.loop)
+        self.handler = self.HANDLER_CLASS(self.uv.loop)
         self.handler.bind(addr)
 
     def accept(self):
@@ -83,7 +86,7 @@ class TCPListen(Listen):
 
             self.uv.wakeup()
             # return a new connection object to the listener
-            conn = TCPConn(client)
+            conn = self.CONN_CLASS(client)
             listener.c.send((conn, error))
             schedule()
         else:
