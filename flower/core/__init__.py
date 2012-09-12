@@ -9,7 +9,7 @@ from flower.core.sched import (tasklet,  get_scheduler, getruncount,
 from flower.core.channel import (bomb, channel, set_channel_callback)
 
 
-def defer(func, *args, **kwargs):
+def defer(func):
     """ A "defer" function invokes a function whose execution is
     deferred to the moment the surrounding function returns. """
-    return lambda f: func(*args, **kwargs)
+    return lambda *args, **kwargs: func(*args, **kwargs)
