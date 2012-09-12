@@ -43,7 +43,7 @@ class UDPConn(IConn):
         self.client.send(self._remote_addr, data)
 
     def writelines(self, seq):
-        self.client.send(self._remote_addr, seq)
+        self.client.sendlines(self._remote_addr, seq)
 
     def local_addr(self):
         return self.client.getsockame()

@@ -34,6 +34,9 @@ def uv_mode(m):
     else:
         return pyuv.UV_READABLE | pyuv.UV_WRITABLE
 
+class UVExit(Exception):
+    pass
+
 
 class UV(object):
 
