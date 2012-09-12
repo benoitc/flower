@@ -312,6 +312,8 @@ class Scheduler(object):
                 task = self.runnable[0]
             elif self._run_calls:
                 task = self._run_calls.pop()
+                if task is self._last_task:
+                    return retval
             else:
                 raise RuntimeError("no runnable tasklet left")
             self.switch(curr, task)

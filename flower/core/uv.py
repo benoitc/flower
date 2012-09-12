@@ -64,7 +64,14 @@ class UV(object):
         getcurrent().remove()
         self._runtask.switch()
 
+    def idle(self, handle):
+        if getcurrent() is self._runtask:
+            schedule()
+
     def run(self):
+        t = pyuv.Timer(self.loop)
+        t.start(self.idle, 0.0001, 0.0001)
+        t.unref()
         self.running = True
         try:
             self.loop.run()
