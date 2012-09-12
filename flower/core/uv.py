@@ -49,7 +49,7 @@ class UV(object):
         self.running = False
 
         # start the server task
-        self._runtask = tasklet(self.run)()
+        self._runtask = tasklet(self.run, "uv_server")()
 
     def _wakeloop(self, handle):
         self.loop.update_time()
