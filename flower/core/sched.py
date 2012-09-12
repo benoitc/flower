@@ -7,13 +7,13 @@ from collections import deque
 import operator
 import threading
 
-from .util import thread_ident
-
 _tls = threading.local()
-
 
 import greenlet
 import six
+
+from .util import thread_ident
+
 
 class TaskletExit(Exception):
     pass
@@ -126,6 +126,7 @@ class tasklet(coroutine):
         self.label = label
         self.alive = False
         self.blocked = False
+        self.sched = None
         self.thread_id = thread_ident()
         self._task_id = _global_task_id
         _global_task_id += 1
@@ -158,6 +159,8 @@ class tasklet(coroutine):
         if self.func is None:
             raise TypeError('tasklet function must be callable')
         func = self.func
+        sched = self.sched = get_scheduler()
+
         def _func():
 
             try:
@@ -166,13 +169,13 @@ class tasklet(coroutine):
                 except TaskletExit:
                     pass
             finally:
-                schedrem(self)
+                sched.remove(self)
                 self.alive = False
 
         self.func = None
         coroutine.bind(self, _func)
         self.alive = True
-        schedpush(self)
+        sched.append(self)
         return self
 
     def run(self):
@@ -206,25 +209,26 @@ class tasklet(coroutine):
             raise RuntimeError("You cannot remove a blocked tasklet.")
         if self is getcurrent():
             raise RuntimeError("The current tasklet cannot be removed.")
-            # not sure if I will revive this  " Use t=tasklet().capture()"
         schedrem(self)
 
 class Scheduler(object):
 
     def __init__(self):
-        # defiain main tasklet
+        # define the main tasklet
         self._main_coroutine = _coroutine_getmain()
-
         self._main_tasklet = _coroutine_getcurrent()
         self._main_tasklet.__class__ = tasklet
         six.get_method_function(self._main_tasklet._init)(self._main_tasklet,
                 label='main')
         self._last_task = self._main_tasklet
 
-        self.thread_id = thread_ident()
-        self._callback = None
-        self._run_calls = []
-        self.runnable = deque()
+        self.thread_id = thread_ident() # the scheduler thread id
+        self._lock = threading.Lock() # global scheduler lock
+
+        self._callback = None # scheduler callback
+        self._run_calls = [] # runcalls. (tasks where run apply
+        self.runnable = deque() # runnable tasks
+        self.blocked = 0 # number of blocked/sleeping tasks
         self.append(self._main_tasklet)
 
     def send(self):
@@ -247,22 +251,39 @@ class Scheduler(object):
     def appendleft(self, task):
         self.runnable.appendleft(task)
 
-    def remove(self, value):
-        try:
-            del self.runnable[operator.indexOf(self.runnable, value)]
-        except ValueError:
-            pass
+    def remove(self, task):
+        """ remove a task from the runnable """
+
+        # the scheduler need to be locked here
+        with self._lock:
+            try:
+                self.runnable.remove(task)
+                # if the task is blocked increment their number
+                if task.blocked:
+                    self.blocked += 1
+            except ValueError:
+                pass
+
+    def unblock(self, task, normal=True):
+        """ unblock a task (put back from sleep)"""
+        with self._lock:
+            task.blocked = 0
+            self.blocked -= 1
+        self.append(task, normal)
 
     def taskwakeup(self, task):
         if task is None:
             return
 
-        try:
-            del self.runnable[operator.indexOf(self.runnable, task)]
-        except ValueError:
-            pass
+        # the scheduler need to be locked here
+        with self._lock:
+            try:
+                self.runnable.remove(task)
+            except ValueError:
+                pass
 
-        self.append(task)
+        # eventually unblock the tasj
+        self.unblock(task)
 
     def switch(self, current, next):
         prev = self._last_task

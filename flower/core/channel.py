@@ -8,7 +8,7 @@ import six
 
 from flower.core.sched import (
     schedule, getcurrent, get_scheduler,
-    schedrem, thread_ident,
+    schedrem, thread_ident
 )
 
 class bomb(object):
@@ -157,16 +157,15 @@ class channel(object):
             # there is somebody waiting
             target = self.queue.popleft()
             source.tempval, target.tempval = target.tempval, source.tempval
-            target.blocked = 0
             if self.schedule_all:
                 # always schedule
-                target.scheduler.append(target.task)
+                target.scheduler.unblock(target.task)
                 do_schedule = True
             elif self.preference == -d:
-                target.scheduler.append(target.task, False)
+                target.scheduler.unblock(target.task, False)
                 do_schedule = True
             else:
-                target.scheduler.append(target.task)
+                target.scheduler.unblock(target.task)
 
             sched = target.scheduler
 
@@ -176,7 +175,6 @@ class channel(object):
             source.blocked = 1
             self.queue.append(source)
             schedrem(getcurrent())
-
             do_schedule = True
 
         if do_schedule:
