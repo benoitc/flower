@@ -27,11 +27,10 @@ class IOChannel(channel):
         self._poller.start(uv_mode(mode), self._tick)
 
     def _tick(self, handle, events, error):
-        print("error")
         if error:
-            if error == errno.EBADF:
+            if error == errno.UV_EBADF:
                 self.handle.close()
-                self.send(None)
+                self.send(events)
             else:
                 self.send_exception(IOError, "uv error: %s" % errno)
         else:
@@ -52,7 +51,7 @@ def wait_read(io):
 
 def wait_write(io):
     """ wrapper around IOChannel to only wait when a device become
-    writanle """
+    writable """
     c = IOChannel(io, 1)
     try:
         return c.receive()
