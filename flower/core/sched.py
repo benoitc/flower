@@ -218,7 +218,7 @@ class tasklet(coroutine):
             # not sure if I will revive this  " Use t=tasklet().capture()"
         _scheduler_remove(self)
 
-class _Scheduler(object):
+class Scheduler(object):
 
     def __init__(self):
         # defiain main tasklet
@@ -348,7 +348,7 @@ def get_scheduler():
     try:
         return _tls.scheduler
     except AttributeError:
-        scheduler = _tls.scheduler = _Scheduler()
+        scheduler = _tls.scheduler = Scheduler()
         return scheduler
 
 
