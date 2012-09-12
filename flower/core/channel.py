@@ -8,7 +8,7 @@ import six
 
 from flower.core.sched import (
     schedule, getcurrent, get_scheduler,
-    _scheduler_remove, thread_ident,
+    schedrem, thread_ident,
 )
 
 class bomb(object):
@@ -175,7 +175,7 @@ class channel(object):
             sched = source.scheduler
             source.blocked = 1
             self.queue.append(source)
-            _scheduler_remove(getcurrent())
+            schedrem(getcurrent())
 
             do_schedule = True
 

@@ -5,7 +5,6 @@
 
 from collections import deque
 import operator
-import sys
 import threading
 
 from .util import thread_ident
@@ -91,14 +90,7 @@ class coroutine(object):
 
     getcurrent = staticmethod(_coroutine_getcurrent)
 
-def _scheduler_remove(value):
-    get_scheduler().remove(value)
 
-def _scheduler_append(value, normal=True):
-    get_scheduler().append(value)
-
-def _scheduler_appendleft(value, normal=True):
-    get_scheduler()._squeue.appendleft(value)
 
 def _scheduler_contains(value):
     scheduler = get_scheduler()
@@ -174,13 +166,13 @@ class tasklet(coroutine):
                 except TaskletExit:
                     pass
             finally:
-                _scheduler_remove(self)
+                schedrem(self)
                 self.alive = False
 
         self.func = None
         coroutine.bind(self, _func)
         self.alive = True
-        _scheduler_append(self)
+        schedpush(self)
         return self
 
     def run(self):
@@ -192,14 +184,13 @@ class tasklet(coroutine):
             # Killing the tasklet by throwing TaskletExit exception.
             coroutine.kill(self)
 
-        _scheduler_remove(self)
+        schedrem(self)
         self.alive = False
 
     def raise_exception(self, exc, *args):
         if not self.is_alive:
             return
-        _scheduler_remove(self)
-
+        schedrem(self)
         coroutine.throw(self, exc, *args)
 
 
@@ -208,7 +199,7 @@ class tasklet(coroutine):
             raise RuntimeError("You cannot run a blocked tasklet")
             if not self.alive:
                 raise RuntimeError("You cannot run an unbound(dead) tasklet")
-        _scheduler_append(self)
+        schedpush(self)
 
     def remove(self):
         if self.blocked:
@@ -216,7 +207,7 @@ class tasklet(coroutine):
         if self is getcurrent():
             raise RuntimeError("The current tasklet cannot be removed.")
             # not sure if I will revive this  " Use t=tasklet().capture()"
-        _scheduler_remove(self)
+        schedrem(self)
 
 class Scheduler(object):
 
@@ -233,7 +224,7 @@ class Scheduler(object):
         self.thread_id = thread_ident()
         self._callback = None
         self._run_calls = []
-        self._squeue = deque()
+        self.runnable = deque()
         self.append(self._main_tasklet)
 
     def send(self):
@@ -247,18 +238,18 @@ class Scheduler(object):
 
     def append(self, value, normal=True):
         if normal:
-            self._squeue.append(value)
+            self.runnable.append(value)
         else:
-            self._squeue.rotate(-1)
-            self._squeue.appendleft(value)
-            self._squeue.rotate(1)
+            self.runnable.rotate(-1)
+            self.runnable.appendleft(value)
+            self.runnable.rotate(1)
 
     def appendleft(self, task):
-        self._squeue.appendleft(task)
+        self.runnable.appendleft(task)
 
     def remove(self, value):
         try:
-            del self._squeue[operator.indexOf(self._squeue, value)]
+            del self.runnable[operator.indexOf(self.runnable, value)]
         except ValueError:
             pass
 
@@ -267,7 +258,7 @@ class Scheduler(object):
             return
 
         try:
-            del self._squeue[operator.indexOf(self._squeue, task)]
+            del self.runnable[operator.indexOf(self.runnable, task)]
         except ValueError:
             pass
 
@@ -294,10 +285,10 @@ class Scheduler(object):
             retval = curr
 
         while True:
-            if self._squeue:
-                if self._squeue[0] is curr:
-                    self._squeue.rotate(-1)
-                task = self._squeue[0]
+            if self.runnable:
+                if self.runnable[0] is curr:
+                    self.runnable.rotate(-1)
+                task = self.runnable[0]
             elif self._run_calls:
                 task = self._run_calls.pop()
             else:
@@ -317,7 +308,7 @@ class Scheduler(object):
             self.append(curr)
 
     def runcount(self):
-        return len(self._squeue)
+        return len(self.runnable)
 
     def getmain(self):
         return self._main_tasklet
@@ -331,7 +322,7 @@ class Scheduler(object):
 
     def __contains__(self, value):
         try:
-            operator.indexOf(self._squeue, value)
+            operator.indexOf(self.runnable, value)
             return True
         except ValueError:
             return False
@@ -378,6 +369,14 @@ def schedule_remove(retval=None):
     scheduler = get_scheduler()
     scheduler.remove(scheduler.getcurrent())
     return scheduler.schedule(retval=retval)
+
+def schedpush(task):
+    scheduler = get_scheduler()
+    scheduler.append(task)
+
+def schedrem(task):
+    scheduler = get_scheduler()
+    scheduler.remove(task)
 
 def run():
     sched = get_scheduler()
