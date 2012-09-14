@@ -3,6 +3,8 @@
 # This file is part of flower. See the NOTICE for more information.
 
 from __future__ import absolute_import
+
+import time
 from py.test import skip
 from flower import core
 
@@ -599,3 +601,70 @@ class Test_Stackless:
         core.tasklet(task)(5)
 
         core.run()
+
+    def test_nonblocking_channel(self):
+        c = core.channel(100)
+        r1 = c.receive()
+        r2 = c.send(True)
+        r3 = c.receive()
+        r4 = c.receive()
+
+        assert r1 is None
+        assert r2 is None
+        assert r3 == True
+        assert r4 is None
+
+    def test_async_channel(self):
+        c = core.channel(100)
+
+        unblocked_sent = 0
+        for i in range(100):
+            c.send(True)
+            unblocked_sent += 1
+
+        assert unblocked_sent == 100
+        assert c.balance == 100
+
+        unblocked_recv = []
+        for i in range(100):
+            unblocked_recv.append(c.receive())
+
+        assert len(unblocked_recv) == 100
+
+    def test_async_with_blocking_channel(self):
+
+        c = core.channel(10)
+
+        unblocked_sent = 0
+        for i in range(10):
+            c.send(True)
+            unblocked_sent += 1
+
+        assert unblocked_sent == 10
+        assert c.balance == 10
+
+        r_list = []
+        def f():
+            start = time.time()
+            c.send(True)
+            r_list.append(start)
+
+        core.tasklet(f)()
+
+
+        unblocked_recv = []
+        for i in range(11):
+            time.sleep(0.01)
+            unblocked_recv.append(c.receive())
+            core.schedule()
+
+
+        core.run()
+
+        diff = time.time() - r_list[0]
+
+        assert len(unblocked_recv) == 11
+        assert diff > 0.1
+
+
+

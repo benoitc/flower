@@ -24,83 +24,36 @@ class bomb(object):
 
 class ChannelWaiter(object):
 
-    __slots__ = ['scheduler', 'task', 'thread_id']
+    __slots__ = ['scheduler', 'task', 'thread_id', 'arg']
 
-    def __init__(self, task, scheduler):
+    def __init__(self, task, scheduler, arg):
         self.task = task
         self.scheduler = scheduler
+        self.arg = arg
         self.thread_id = thread_ident()
 
-    def __get_tempval(self):
-        return self.task.tempval
-
-    def __set_tempval(self, tempval):
-        self.task.tempval = tempval
-
-    tempval = property(__get_tempval, __set_tempval)
-
-    def __get_blocked(self):
-        return self.task.blocked
-
-    def __set_blocked(self, blocked):
-        self.task.blocked = blocked
-
-    blocked = property(__get_blocked, __set_blocked)
+    def __str__(self):
+        "waiter: %s" % str(self.task)
 
 class channel(object):
     """
-    A channel object is used for communication between tasklets.
-    By sending on a channel, a tasklet that is waiting to receive
-    is resumed. If there is no waiting receiver, the sender is suspended.
-    By receiving from a channel, a tasklet that is waiting to send
-    is resumed. If there is no waiting sender, the receiver is suspended.
+    A channel provides a mechanism for two concurrently executing
+    functions to synchronize execution and communicate by passing a
+    value of a specified element type. A channel is the only thread-safe
+    operation.
 
-    Attributes:
-
-    preference
-    ----------
-    -1: prefer receiver
-     0: don't prefer anything
-     1: prefer sender
-
-    Pseudocode that shows in what situation a schedule happens:
-
-    def send(arg):
-        if !receiver:
-            schedule()
-        elif schedule_all:
-            schedule()
-        else:
-            if (prefer receiver):
-                schedule()
-            else (don't prefer anything, prefer sender):
-                pass
-
-        NOW THE INTERESTING STUFF HAPPENS
-
-    def receive():
-        if !sender:
-            schedule()
-        elif schedule_all:
-            schedule()
-        else:
-            if (prefer sender):
-                schedule()
-            else (don't prefer anything, prefer receiver):
-                pass
-
-        NOW THE INTERESTING STUFF HAPPENS
-
-    schedule_all
-    ------------
-    True: overwrite preference. This means that the current tasklet always
-          schedules before returning from send/receive (it always blocks).
-          (see Stackless/module/channelobject.c)
+    The capacity, in number of elements, sets the size of the buffer in
+    the channel. If the capacity is greater than zero, the channel is
+    asynchronous: communication operations succeed without blocking if
+    the buffer is not full (sends) or not empty (receives), and elements
+    are received in the order they are sent. If the capacity is zero or
+    absent, the communication succeeds only when both a sender and
+    receiver are ready.
     """
 
 
-    def __init__(self, label=''):
-        self.balance = 0
+    def __init__(self, capacity=None, label=''):
+        self.capacity = capacity
         self.closing = False
         self.recvq = deque()
         self.sendq = deque()
@@ -120,6 +73,10 @@ class channel(object):
         If the channel is empty, the flag 'closed' becomes true.
         """
         self.closing = True
+
+    @property
+    def balance(self):
+        return len(self.sendq) - len(self.recvq)
 
     @property
     def closed(self):
@@ -153,57 +110,64 @@ class channel(object):
 
         'target' is the peer tasklet to the current one
         """
-        do_schedule = False
+
         assert abs(d) == 1
 
-        source = ChannelWaiter(getcurrent(), get_scheduler())
-        source.tempval = arg
+        do_schedule = False
+        curr = getcurrent()
+        source = ChannelWaiter(curr, get_scheduler(), arg)
 
-        with self._lock:
-            if d > 0:
+        if d > 0:
+            if not self.capacity:
                 cando = self.balance < 0
-                dir = d
             else:
+                cando = len(self.recvq) <= self.capacity
+            dir = d
+        else:
+            if not self.capacity:
                 cando = self.balance > 0
-                dir = 0
+            else:
+                cando = len(self.sendq) <= self.capacity
+            dir = 0
 
-            if _channel_callback is not None:
-                _channel_callback(self, source.task, dir, not cando)
-            self.balance += d
-
+        if _channel_callback is not None:
+            with self._lock:
+                _channel_callback(self, getcurrent(), dir, not cando)
 
         if cando:
             # there is somebody waiting
-            target = self.dequeue(dir)
-            source.tempval, target.tempval = target.tempval, source.tempval
-            if self.schedule_all:
-                # always schedule
-                target.scheduler.unblock(target.task)
-                do_schedule = True
-            elif self.preference == -d:
-                target.scheduler.unblock(target.task, False)
-                do_schedule = True
-            else:
-                target.scheduler.unblock(target.task)
+            try:
+                target = self.dequeue(d)
+            except IndexError:
+                # capacity is not None but nobody is waiting
+                if d > 0:
+                    self.enqueue(dir, ChannelWaiter(None, None, arg))
+                return None
 
-            sched = target.scheduler
-
+            source.arg, target.arg = target.arg, source.arg
+            if target.task is not None:
+                if self.schedule_all:
+                    target.scheduler.unblock(target.task)
+                    do_schedule = True
+                elif self.preference == -d:
+                    target.scheduler.unblock(target.task, False)
+                    do_schedule = True
+                else:
+                    target.scheduler.unblock(target.task)
         else:
             # nobody is waiting
-            sched = source.scheduler
-            source.blocked = 1
+            source.task.blocked == 1
             self.enqueue(dir, source)
-            schedrem(getcurrent())
+            schedrem(source.task)
             do_schedule = True
 
         if do_schedule:
-            if sched.thread_id == thread_ident():
-                schedule()
+            schedule()
 
-        retval = source.tempval
-        if isinstance(retval, bomb):
-            retval.raise_()
-        return retval
+
+        if isinstance(source.arg, bomb):
+            source.arg.raise_()
+        return source.arg
 
     def receive(self):
         """

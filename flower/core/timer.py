@@ -11,7 +11,7 @@ import six
 from .util import nanotime
 from .sched import (tasklet, schedule, schedule_remove, get_scheduler,
         getcurrent, taskwakeup, getmain)
-
+from .channel import channel
 
 class Timers(object):
 
@@ -131,15 +131,10 @@ def sleep(seconds=0):
     sched = get_scheduler()
     curr = getcurrent()
 
+    c = channel()
     def ready(now, t):
-        curr.blocked = False
-        sched.append(curr)
-        schedule()
+        c.send(None)
 
     t = Timer(ready, seconds)
     t.start()
-
-    if curr is not getmain():
-        curr.blocked = True
-
-    schedule_remove()
+    c.receive()
