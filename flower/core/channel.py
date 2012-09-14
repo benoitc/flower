@@ -4,6 +4,8 @@
 
 from collections import deque
 import sys
+import threading
+
 import six
 
 from flower.core.sched import (
@@ -100,7 +102,9 @@ class channel(object):
     def __init__(self, label=''):
         self.balance = 0
         self.closing = False
-        self.queue = deque()
+        self.recvq = deque()
+        self.sendq = deque()
+        self._lock = threading.Lock()
         self.label = label
         self.preference = -1
         self.schedule_all = False
@@ -127,6 +131,18 @@ class channel(object):
         """
         self.closing = False
 
+    def enqueue(self, d, waiter):
+        if d > 0:
+            return self.sendq.append(waiter)
+        else:
+            return self.recvq.append(waiter)
+
+    def dequeue(self, d):
+        if d > 0:
+            return self.recvq.popleft()
+        else:
+            return self.sendq.popleft()
+
     def _channel_action(self, arg, d):
         """
         d == -1 : receive
@@ -142,20 +158,23 @@ class channel(object):
 
         source = ChannelWaiter(getcurrent(), get_scheduler())
         source.tempval = arg
-        if d > 0:
-            cando = self.balance < 0
-            dir = d
-        else:
-            cando = self.balance > 0
-            dir = 0
 
-        if _channel_callback is not None:
-            _channel_callback(self, source.task, dir, not cando)
+        with self._lock:
+            if d > 0:
+                cando = self.balance < 0
+                dir = d
+            else:
+                cando = self.balance > 0
+                dir = 0
 
-        self.balance += d
+            if _channel_callback is not None:
+                _channel_callback(self, source.task, dir, not cando)
+            self.balance += d
+
+
         if cando:
             # there is somebody waiting
-            target = self.queue.popleft()
+            target = self.dequeue(dir)
             source.tempval, target.tempval = target.tempval, source.tempval
             if self.schedule_all:
                 # always schedule
@@ -173,7 +192,7 @@ class channel(object):
             # nobody is waiting
             sched = source.scheduler
             source.blocked = 1
-            self.queue.append(source)
+            self.enqueue(dir, source)
             schedrem(getcurrent())
             do_schedule = True
 
