@@ -6,6 +6,7 @@
 from collections import deque
 import operator
 import threading
+import time
 
 _tls = threading.local()
 
@@ -301,6 +302,7 @@ class Scheduler(object):
 
     def schedule(self, retval=None):
         curr = self.getcurrent()
+        main = self.getmain()
 
         if retval is None:
             retval = curr
@@ -312,12 +314,13 @@ class Scheduler(object):
                 task = self.runnable[0]
             elif self._run_calls:
                 task = self._run_calls.pop()
-                if task is self._last_task:
-                    return retval
             else:
-                raise RuntimeError("no runnable tasklet left")
+                return
+
+            # switch to next task
             self.switch(curr, task)
 
+            # exit the loop if there are no more tasks
             if curr is self._last_task:
                 return retval
 
@@ -326,7 +329,11 @@ class Scheduler(object):
         self._run_calls.append(curr)
         self.remove(curr)
         try:
-            self.schedule()
+            while True:
+                self.schedule()
+                if not curr.blocked:
+                    break
+                time.sleep(0.0001)
         finally:
             self.append(curr)
 
