@@ -8,6 +8,28 @@ from flower.core.uv import get_fd, uv_mode, uv_server
 
 from pyuv import errno
 
+def get_fd(io):
+    if not isinstance(io, int):
+        if hasattr(io, 'fileno'):
+            if callable(io.fileno):
+                fd = io.fileno()
+            else:
+                fd = io.fileno
+        else:
+            raise ValueError("invalid file descriptor number")
+    else:
+        fd = io
+    return fd
+
+
+def uv_mode(m):
+    if m == 0:
+        return pyuv.UV_READABLE
+    elif m == 1:
+        return pyuv.UV_WRITABLE
+    else:
+        return pyuv.UV_READABLE | pyuv.UV_WRITABLE
+
 class IOChannel(channel):
     """ channel to wait on IO events for a specific fd. It now use the UV server
     facility.

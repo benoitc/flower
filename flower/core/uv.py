@@ -2,122 +2,120 @@
 #
 # This file is part of flower. See the NOTICE for more information.
 
-import sys
 import threading
-
-_tls = threading.local()
+import time
 
 import pyuv
 
-from flower.core.channel import channel
-from flower.core.sched import tasklet, getcurrent, schedule
+from flower.core.util import thread_ident
+from flower.core import channel
 
-def get_fd(io):
-    if not isinstance(io, int):
-        if hasattr(io, 'fileno'):
-            if callable(io.fileno):
-                fd = io.fileno()
-            else:
-                fd = io.fileno
-        else:
-            raise ValueError("invalid file descriptor number")
-    else:
-        fd = io
-    return fd
+_tls = threading.local()
+
+class IoTask(object):
+    """ object used as a reference to the running IOLoop """
+
+    def __init__(self, chan, async_handle, thread_id):
+        self.chan = chan
+        self.async_handle = async_handle
+        self.thread_id = thread_id
+
+    def __str__(self):
+        return "iotask:%s" % self.thread_id
+
+    def send(self, msg):
+        # send the message but don't wait
+        self.chan.send(msg)
+
+        # wake up the IO thread
+        self.async_handle.send()
 
 
-def uv_mode(m):
-    if m == 0:
-        return pyuv.UV_READABLE
-    elif m == 1:
-        return pyuv.UV_WRITABLE
-    else:
-        return pyuv.UV_READABLE | pyuv.UV_WRITABLE
-
-class UVExit(Exception):
+class IoLoopExit(Exception):
     pass
 
+class IoLoop(threading.Thread):
+    """ The thread keeping an IO Loop """
 
-class UV(object):
+    def __init__(self, iotask_chan):
+        threading.Thread.__init__(self)
 
-    def __init__(self):
-        self.loop = pyuv.Loop()
-        self._async = pyuv.Async(self.loop, self._wakeloop)
-        self._async.unref()
-        self.fds = {}
-        self._lock = threading.RLock()
+        self.iotask_chan = iotask_chan
+
+        # iotthread interactions
+        self.async_handle = None
+        self.chan = None
+
+        # runtime data
         self.running = False
-
-        # start the server task
-        self._runtask = tasklet(self.run, "uv_server")()
-
-    def _wakeloop(self, handle):
-        self.loop.update_time()
-
-    def wakeup(self):
-        self._async.send()
-
-    def switch(self):
-        if not self.running:
-            self._runtask = tasklet(self.run)()
-
-        getcurrent().remove()
-        self._runtask.switch()
-
-    def idle(self, handle):
-        if getcurrent() is self._runtask:
-            schedule()
+        self.daemon = True
 
     def run(self):
-        t = pyuv.Timer(self.loop)
-        t.start(self.idle, 0.0001, 0.0001)
-        t.unref()
+        # initialize the loop
+        loop = pyuv.Loop()
+
+        # setup interactions channel & wakeup pipe
+        self.chan = channel(100)
+        self.async_handle = pyuv.Async(loop, self.wakeup_cb)
+
+        # Send out the handle through which it will be abble to
+        # interract with the loop
+        new_iotask = IoTask(self.chan, self.async_handle, thread_ident())
+        self.iotask_chan.send(new_iotask)
+
+        # start the event loop
         self.running = True
         try:
-            self.loop.run()
+            loop.run()
+            raise RuntimeError
         finally:
             self.running = False
 
-def uv_server():
-    global _tls
+    def wakeup_cb(self, async_handle):
+        cb = self.chan.receive()
+        if isinstance(cb, IoLoopExit):
+            return self.stop(async_handle)
+        else:
+            # execute the callback and pass it the loop
+            print("exec %s" % cb)
+            cb(async_handle.loop)
 
+    def stop(self, async_handle):
+        async_handle.close()
+
+        def _walk(handle):
+            if handle.active:
+                handle.close()
+
+        async_handle.loop.walk(_walk)
+
+def spawn_iotask():
+    """ spawn a new iotask """
+    ch = channel()
+    th = IoLoop(ch)
+    th.start()
+    # we should implement the select features here. Waiting that this
+    # will do the trick
+    #while True:
+    #    if ch.balance > 0:
+    #        break
+    #    time.sleep(0.0001)
+    return ch.receive()
+
+def interract(iotask, msg):
+    """ interract with the iothread, This is the only safe way to
+    interract wirh the ioloop. """
+    iotask.send(msg)
+
+def exit(iotask):
+    """ exit the iothread """
+    iotask.send(IoLoopExit())
+
+
+def default_iotask():
+    """ there is actually one IO Loop per scheduler """
     try:
-        return _tls.uv_server
+        return _tls.iotask
     except AttributeError:
-        uv_server = _tls.uv_server = UV()
-        return uv_server
-
-def uv_sleep(seconds, ref=True):
-    """ use the event loop for sleep. This an alternative to our own
-    time events scheduler """
-
-    uv = uv_server()
-    c = channel()
-    def _sleep_cb(handle):
-        handle.stop()
-        c.send(None)
-
-    sleep = pyuv.Timer(uv.loop)
-    sleep.start(_sleep_cb, seconds, seconds)
-    if not ref:
-        sleep.unref()
-
-    c.receive()
-
-def uv_idle(ref=True):
-    """ use the event loop for idling. This an alternative to our own
-    time events scheduler """
-
-    uv = uv_server()
-    c = channel()
-    def _sleep_cb(handle):
-        handle.stop()
-        c.send(True)
-
-
-    idle = pyuv.Idle(uv.loop)
-    idle.start(_sleep_cb)
-    if not ref:
-        idle.unref()
-
-    return c.receive()
+        iotask = _tls.iotask = spawn_iotask()
+        return iotask
