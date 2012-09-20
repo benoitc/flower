@@ -18,31 +18,39 @@ def dprint(txt):
     if SHOW_STRANGE:
         print(txt)
 
-class Test_Stackless:
+class Test_Channel:
 
-    def test_simple(self):
-        rlist = []
+    def test_simple_channel(self):
+        output = []
+        def print_(*args):
+            output.append(args)
 
-        def f():
-            rlist.append('f')
+        def Sending(channel):
+            print_("sending")
+            channel.send("foo")
 
-        def g():
-            rlist.append('g')
-            core.schedule()
+        def Receiving(channel):
+            print_("receiving")
+            print_(channel.receive())
 
-        def main():
-            rlist.append('m')
-            cg = core.tasklet(g)()
-            cf = core.tasklet(f)()
-            core.run()
-            rlist.append('m')
+        ch=core.channel()
 
-        main()
+        task=core.tasklet(Sending)(ch)
 
-        assert core.getcurrent() is core.getmain()
-        assert rlist == 'm g f m'.split()
+        # Note: the argument, schedule is taking is the value,
+        # schedule returns, not the task that runs next
 
-    def test_with_channel(self):
+        #core.schedule(task)
+        core.schedule()
+        task2=core.tasklet(Receiving)(ch)
+        #core.schedule(task2)
+        core.schedule()
+
+        core.run()
+
+        assert output == [('sending',), ('receiving',), ('foo',)]
+
+    def test_task_with_channel(self):
         pref = {}
         pref[-1] = ['s0', 'r0', 's1', 'r1', 's2', 'r2',
                     's3', 'r3', 's4', 'r4', 's5', 'r5',
@@ -132,189 +140,7 @@ class Test_Stackless:
         numbers.sort()
         assert rlist == numbers
 
-    def test_scheduling_cleanup(self):
-        rlist = []
-        def f():
-            rlist.append('fb')
-            core.schedule()
-            rlist.append('fa')
 
-        def g():
-            rlist.append('gb')
-            core.schedule()
-            rlist.append('ga')
-
-        def h():
-            rlist.append('hb')
-            core.schedule()
-            rlist.append('ha')
-
-        tf = core.tasklet(f)()
-        tg = core.tasklet(g)()
-        th = core.tasklet(h)()
-
-        rlist.append('mb')
-        core.run()
-        rlist.append('ma')
-
-        assert rlist == 'mb fb gb hb fa ga ha ma'.split()
-
-    def test_except(self):
-        rlist = []
-        def f():
-            rlist.append('f')
-            return 1/0
-
-        def g():
-            rlist.append('bg')
-            core.schedule()
-            rlist.append('ag')
-
-        def h():
-            rlist.append('bh')
-            core.schedule()
-            rlist.append('ah')
-
-        tg = core.tasklet(g)()
-        tf = core.tasklet(f)()
-        th = core.tasklet(h)()
-
-        try:
-            core.run()
-            # cheating, can't test for ZeroDivisionError
-        except ZeroDivisionError:
-            rlist.append('E')
-        core.schedule()
-        core.schedule()
-
-        assert rlist == "bg f E bh ag ah".split()
-
-    def test_except_full(self):
-        rlist = []
-        def f():
-            rlist.append('f')
-            return 1/0
-
-        def g():
-            rlist.append('bg')
-            core.schedule()
-            rlist.append('ag')
-
-        def h():
-            rlist.append('bh')
-            core.schedule()
-            rlist.append('ah')
-
-        tg = core.tasklet(g)()
-        tf = core.tasklet(f)()
-        th = core.tasklet(h)()
-
-        try:
-            core.run()
-        except ZeroDivisionError:
-            rlist.append('E')
-        core.schedule()
-        core.schedule()
-
-        assert rlist == "bg f E bh ag ah".split()
-
-    def test_kill(self):
-        def f():pass
-        t =  core.tasklet(f)()
-        t.kill()
-        assert not t.alive
-
-    def test_catch_taskletexit(self):
-        # Tests if TaskletExit can be caught in the tasklet being killed.
-        global taskletexit
-        taskletexit = False
-
-        def f():
-            try:
-                core.schedule()
-            except TaskletExit:
-                global TaskletExit
-                taskletexit = True
-                raise
-
-            t =  core.tasklet(f)()
-            t.run()
-            assert t.alive
-            t.kill()
-            assert not t.alive
-            assert taskletexit
-
-    def test_autocatch_taskletexit(self):
-        # Tests if TaskletExit is caught correctly in core.tasklet.setup().
-        def f():
-            core.schedule()
-
-        t = core.tasklet(f)()
-        t.run()
-        t.kill()
-
-
-    # tests inspired from simple core.com examples
-
-    def test_construction(self):
-        output = []
-        def print_(*args):
-            output.append(args)
-
-        def aCallable(value):
-            print_("aCallable:", value)
-
-        task = core.tasklet(aCallable)
-        task.setup('Inline using setup')
-
-        core.run()
-        assert output == [("aCallable:", 'Inline using setup')]
-
-
-        del output[:]
-        task = core.tasklet(aCallable)
-        task('Inline using ()')
-
-        core.run()
-        assert output == [("aCallable:", 'Inline using ()')]
-
-        del output[:]
-        task = core.tasklet()
-        task.bind(aCallable)
-        task('Bind using ()')
-
-        core.run()
-        assert output == [("aCallable:", 'Bind using ()')]
-
-    def test_simple_channel(self):
-        output = []
-        def print_(*args):
-            output.append(args)
-
-        def Sending(channel):
-            print_("sending")
-            channel.send("foo")
-
-        def Receiving(channel):
-            print_("receiving")
-            print_(channel.receive())
-
-        ch=core.channel()
-
-        task=core.tasklet(Sending)(ch)
-
-        # Note: the argument, schedule is taking is the value,
-        # schedule returns, not the task that runs next
-
-        #core.schedule(task)
-        core.schedule()
-        task2=core.tasklet(Receiving)(ch)
-        #core.schedule(task2)
-        core.schedule()
-
-        core.run()
-
-        assert output == [('sending',), ('receiving',), ('foo',)]
 
     def test_balance_zero(self):
         ch=core.channel()
@@ -356,38 +182,6 @@ class Test_Stackless:
 
         assert output == [(1,), (2,)]
 
-    def test_schedule(self):
-        output = []
-        def print_(*args):
-            output.append(args)
-
-        def f(i):
-            print_(i)
-
-        core.tasklet(f)(1)
-        core.tasklet(f)(2)
-        core.schedule()
-
-        assert output == [(1,), (2,)]
-
-
-    def test_cooperative(self):
-        output = []
-        def print_(*args):
-            output.append(args)
-
-        def Loop(i):
-            for x in range(3):
-                core.schedule()
-                print_("schedule", i)
-
-        core.tasklet(Loop)(1)
-        core.tasklet(Loop)(2)
-        core.run()
-
-        assert output == [('schedule', 1), ('schedule', 2),
-                          ('schedule', 1), ('schedule', 2),
-                          ('schedule', 1), ('schedule', 2),]
 
     def test_channel_callback(self):
         res = []
@@ -413,30 +207,6 @@ class Test_Stackless:
             (chan, maintask, 1, 1),
             (chan, task, 0, 0)
         ]
-
-    def test_schedule_callback(self):
-        res = []
-        cb = []
-        def schedule_cb(prev, next):
-            cb.append((prev, next))
-
-        core.set_schedule_callback(schedule_cb)
-        def f(i):
-            res.append('A_%s' % i)
-            core.schedule()
-            res.append('B_%s' % i)
-
-        t1 = core.tasklet(f)(1)
-        t2 = core.tasklet(f)(2)
-        maintask = core.getmain()
-        core.run()
-        assert res == ['A_1', 'A_2', 'B_1', 'B_2']
-        assert len(cb) == 5
-        assert cb[0] == (maintask, t1)
-        assert cb[1] == (t1, t2)
-        assert cb[2] == (t2, t1)
-        assert cb[3] == (t1, t2)
-        assert cb[4] == (t2, maintask)
 
     def test_bomb(self):
         try:
@@ -496,15 +266,6 @@ class Test_Stackless:
 
         t2 = core.tasklet(with_run)()
         core.run()
-
-    def test_schedule_return(self):
-        def f():pass
-        t1= core.tasklet(f)()
-        r = core.schedule()
-        assert r is core.getmain()
-        t2 = core.tasklet(f)()
-        r = core.schedule('test')
-        assert r == 'test'
 
     def test_simple_pipe(self):
         def pipe(X_in, X_out):
@@ -665,6 +426,3 @@ class Test_Stackless:
 
         assert len(unblocked_recv) == 11
         assert diff > 0.1
-
-
-
