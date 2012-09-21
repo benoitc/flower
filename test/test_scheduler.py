@@ -42,6 +42,20 @@ class Test_Stackless:
         assert core.getcurrent() is core.getmain()
         assert rlist == 'm g f m'.split()
 
+    def test_run(self):
+        output = []
+        def print_(*args):
+            output.append(args)
+
+        def f(i):
+            print_(i)
+
+        core.tasklet(f)(1)
+        core.tasklet(f)(2)
+        core.run()
+
+        assert output == [(1,), (2,)]
+
     def test_scheduling_cleanup(self):
         rlist = []
         def f():

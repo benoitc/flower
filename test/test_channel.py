@@ -168,21 +168,6 @@ class Test_Channel:
 
         assert ch.balance == -1
 
-    def test_run(self):
-        output = []
-        def print_(*args):
-            output.append(args)
-
-        def f(i):
-            print_(i)
-
-        core.tasklet(f)(1)
-        core.tasklet(f)(2)
-        core.run()
-
-        assert output == [(1,), (2,)]
-
-
     def test_channel_callback(self):
         res = []
         cb = []
