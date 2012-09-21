@@ -315,7 +315,8 @@ class Scheduler(object):
             elif self._run_calls:
                 task = self._run_calls.pop()
             else:
-                return
+                raise RuntimeError("no more tasks are sleeping")
+
 
             # switch to next task
             self.switch(curr, task)
