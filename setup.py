@@ -1,5 +1,6 @@
 import os
-from setuptools import setup, find_packages
+from setuptools import setup, find_packages, Extension
+
 import sys
 
 py_version = sys.version_info[:2]
@@ -45,5 +46,9 @@ setup(name='tulip',
       author = 'Benoit Chesneau',
       author_email = 'benoitc@e-engura.org',
       packages=find_packages(),
+      ext_modules = [
+            Extension("flower.core.sync", ["flower/core/sync.c"])
+      ],
+
       install_requires = ['pyuv', 'greenlet', 'six'],
       data_files = DATA_FILES)
