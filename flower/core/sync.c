@@ -9,7 +9,6 @@
 #include <stdio.h>
 
 #include "Python.h"
-#include "intobject.h"
 
 struct module_state {
     PyObject *error;
