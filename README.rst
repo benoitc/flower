@@ -7,6 +7,18 @@ Flower
 collection of modules to build distributed and reliable concurrent
 systems in Python.
 
+::
+
+    a = “”
+
+    def f():
+       print(a)
+
+    def hello() {
+        a = "hello, world"
+        tasklet(f)()
+    }
+
 Requirements
 ------------
 
