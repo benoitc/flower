@@ -16,49 +16,69 @@ Requirements
 Simple example
 --------------
 
-A simple example showing how to create a consumer and use other actor
-function to feed it.
+A simple example showing how to create a simple echo server.
 
 .. code-block:: python
 
-        import flower
-
-        messages = []
-        sources = []
-        def consumer():
-            # wait for coming message in the current actor
-            while True:
-                source, msg = flower.receive()
-                if not msg:
-                    break
-                print("got message from %s: %s" % (source.ref, msg))
-
-        def publisher1(ref):
-            # an actor sending messages to the consumer
-            msg = ['hello', 'world']
-            for s in msg:
-                flower.send(ref, s)
-
-        def publisher2(ref):
-            msg = ['brave', 'new', 'world', '']
-            for s in msg:
-                flower.send(ref, s)
-
-        ref_consumer = flower.spawn(consumer)
-        flower.spawn(publisher1, ref_consumer)
-        flower.spawn(publisher2, ref_consumer)
-
-        flower.run()
+    # Echo server program
+    from flower import tasklet, run
+    from flower.net import Listen
 
 
-should return::
+    # handle the connection. It return data to the sender.
+    def handle_connection(conn):
+        while True:
+            data = conn.read()
+            if not data:
+                break
 
-    $ python examples/actor_example.py
-    got message from 1: hello
-    got message from 2: brave
-    got message from 1: world
-    got message from 2: new
-    got message from 2: world
+            conn.write(data)
+
+
+    # Listen on tcp port 8000 on localhost
+    l = Listen(('127.0.0.1', 8000), "tcp")
+    try:
+        while True:
+            try:
+
+                # wait for new connections (it doesn't block other tasks)
+                conn, err = l.accept()
+
+                # Handle the connection in a new task.
+                # The loop then returns to accepting, so that
+                # multiple connections may be served concurrently.
+
+                t = tasklet(handle_connection)(conn)
+            except KeyboardInterrupt:
+                break
+    finally:
+        l.close()
+
+    run()
+
+
+And the echo client::
+
+    from flower import tasklet, run, schedule
+    from flower.net import Dial
+
+
+    # connect to the remote server
+    conn = Dial("tcp", ('127.0.0.1', 8000))
+
+    # start to handle the connection
+    # we send a string to the server and fetch the
+    # response back
+
+    for i in range(3):
+        msg = "hello"
+        print("sent %s" % msg)
+        resp = conn.write(msg)
+        ret = conn.read()
+        print("echo: %s" % ret)
+
+    conn.close()
+    run()
 
 
 Installation
