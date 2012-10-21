@@ -14,10 +14,9 @@ systems in Python.
     def f():
        print(a)
 
-    def hello() {
+    def hello():
         a = "hello, world"
         tasklet(f)()
-    }
 
 Requirements
 ------------
