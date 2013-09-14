@@ -1,12 +1,11 @@
 
 
-
 ==========================================================================================
 
 
 
 
-**DEPPRECATED** Flower is now superseded by `Offset <http://github.com/benoitc/offser>`_ .
+**DEPPRECATED** Flower is now superseded by `Offset <http://github.com/benoitc/offset>`_ .
 
 
 
