@@ -1,3 +1,18 @@
+
+
+**DEPPRECATED** Flower is now superseded by `Offset <http://github.com/benoitc/offser>`_ .
+
+
+
+
+
+
+
+
+
+
+
+
 Flower
 ======
 
